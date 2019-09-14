@@ -12,6 +12,5 @@
 ### Contact
 > You can contact the core developers of Skyline at our [Discord](https://discord.gg/XnbXNQM). If you have any questions, feel free to ask.
 
-
-
-Nintendo Switch™ is a trademark of Nintendo™.
+### Disclaimer
+> Nintendo Switch™ is a trademark of Nintendo™. We are in no way associated with Nintendo™, or their Nintendo Switch™ product.

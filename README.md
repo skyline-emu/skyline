@@ -6,11 +6,11 @@
 </h1>
 
 <p align="center">
-    <i>Skyline is an experimental Nintendo Switch emulator (aka compatibility layer) for Android.</i><br/><br>
+    <i>Skyline is an experimental Nintendo Switch emulator for ARMv8 Android devices.</i><br/><br>
 </p>
 
 ### Skyline 
-> is an experimental Nintendo Switch emulator (aka compatibility layer) for Android phones, licensed under GPLv3. Please refer to the [license file](https://github.com/Skyline-emu/Skyline/blob/master/LICENSE) for more information. It currently does not run any games, nor Homebrew. It has no graphical output as of now.
+> is an experimental Nintendo Switch emulator for ARMv8 Android devices, licensed under GPLv3. Please refer to the [license file](https://github.com/Skyline-emu/Skyline/blob/master/LICENSE) for more information. It currently does not run any games, nor Homebrew. It has no graphical output as of now.
 
 ### Contact
 > You can contact the core developers of Skyline at our [Discord](https://discord.gg/XnbXNQM). If you have any questions, feel free to ask.

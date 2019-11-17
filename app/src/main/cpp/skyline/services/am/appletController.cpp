@@ -47,10 +47,13 @@ namespace skyline::kernel::service::am {
     }
 
 	void ICommonStateGetter::GetDefaultDisplayResolution(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
-		width = static_cast<bool>(operationMode) ? 1920 : 1280;
-		height = static_cast<bool>(operationMode) ? 1080 : 720;
-		response.WriteValue<u32>(static_cast<u32>(width));
-		response.WriteValue<u32>(static_cast<u32>(height));
+        if (operationMode == OperationMode::Handheld) {
+            response.WriteValue<u32>(constant::HandheldResolutionW);
+            response.WriteValue<u32>(constant::HandheldResolutionH);
+        }  else if (operationMode == OperationMode::Docked) {
+            response.WriteValue<u32>(constant::DockedResolutionW);
+            response.WriteValue<u32>(constant::DockedResolutionH);
+        }
 	}
 
     ISelfController::ISelfController(const DeviceState &state, ServiceManager &manager) : BaseService(state, manager, false, Service::am_ISelfController, {

@@ -28,8 +28,6 @@ namespace skyline::kernel::service::am {
 
         std::shared_ptr<type::KEvent> messageEvent; //!< The event signalled when there is a message available
         std::queue<Message> messageQueue;
-		u32 width;
-		u32 height;
 
         enum class FocusState : u8 {
             InFocus = 1, //!< The application is in foreground

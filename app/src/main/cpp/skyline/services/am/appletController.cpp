@@ -12,7 +12,7 @@ namespace skyline::kernel::service::am {
         {0x9, SFUNC(ICommonStateGetter::GetCurrentFocusState)},
         {0x5, SFUNC(ICommonStateGetter::GetOperationMode)},
         {0x6, SFUNC(ICommonStateGetter::GetPerformanceMode)},
-		{0x3C, SFUNC(ICommonStateGetter::GetDefaultDisplayResolution)}
+        {0x3C, SFUNC(ICommonStateGetter::GetDefaultDisplayResolution)}
     }) {
         operationMode = static_cast<OperationMode>(state.settings->GetBool("operation_mode"));
         state.logger->Info("Switch on mode: {}", static_cast<bool>(operationMode) ? "Docked" : "Handheld");
@@ -111,6 +111,6 @@ namespace skyline::kernel::service::am {
     IDebugFunctions::IDebugFunctions(const DeviceState &state, ServiceManager &manager) : BaseService(state, manager, false, Service::am_IDebugFunctions, {
     }) {}
 
-	IAppletCommonFunctions::IAppletCommonFunctions(const DeviceState& state, ServiceManager& manager) : BaseService(state, manager, false, Service::am_IAppletCommonFunctions, {
+    IAppletCommonFunctions::IAppletCommonFunctions(const DeviceState& state, ServiceManager& manager) : BaseService(state, manager, false, Service::am_IAppletCommonFunctions, {
 	}) {}
 }

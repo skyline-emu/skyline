@@ -73,7 +73,7 @@ namespace skyline::kernel::service::am {
          */
         void GetPerformanceMode(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response);
 
-		void GetDefaultDisplayResolution(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response);
+        void GetDefaultDisplayResolution(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response);
     };
 
     /**
@@ -173,7 +173,7 @@ namespace skyline::kernel::service::am {
     };
 
 	class IAppletCommonFunctions : public BaseService {
-	public:
-		IAppletCommonFunctions(const DeviceState& state, ServiceManager& manager);
+	  public:
+	    IAppletCommonFunctions(const DeviceState& state, ServiceManager& manager);
 	};
 }

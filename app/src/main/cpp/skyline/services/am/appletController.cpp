@@ -46,7 +46,7 @@ namespace skyline::kernel::service::am {
         response.WriteValue<u32>(static_cast<u32>(operationMode));
     }
 
-	void ICommonStateGetter::GetDefaultDisplayResolution(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
+    void ICommonStateGetter::GetDefaultDisplayResolution(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
         if (operationMode == OperationMode::Handheld) {
             response.WriteValue<u32>(constant::HandheldResolutionW);
             response.WriteValue<u32>(constant::HandheldResolutionH);
@@ -54,7 +54,7 @@ namespace skyline::kernel::service::am {
             response.WriteValue<u32>(constant::DockedResolutionW);
             response.WriteValue<u32>(constant::DockedResolutionH);
         }
-	}
+    }
 
     ISelfController::ISelfController(const DeviceState &state, ServiceManager &manager) : BaseService(state, manager, false, Service::am_ISelfController, {
         {0xB, SFUNC(ISelfController::SetOperationModeChangedNotification)},
@@ -112,5 +112,5 @@ namespace skyline::kernel::service::am {
     }) {}
 
     IAppletCommonFunctions::IAppletCommonFunctions(const DeviceState& state, ServiceManager& manager) : BaseService(state, manager, false, Service::am_IAppletCommonFunctions, {
-	}) {}
+    }) {}
 }

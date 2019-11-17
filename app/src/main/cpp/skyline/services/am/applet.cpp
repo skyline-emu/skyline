@@ -10,12 +10,12 @@ namespace skyline::kernel::service::am {
         manager.RegisterService(SRVREG(IApplicationProxy), session, response);
     }
 
-	appletAE::appletAE(const DeviceState& state, ServiceManager& manager) : BaseService(state, manager, false, Service::am_appletAE, {
-		{0x64, SFUNC(appletAE::OpenSystemAppletProxy)},
-		{0xC8, SFUNC(appletAE::OpenLibraryAppletProxy)},
-		{0xC9, SFUNC(appletAE::OpenLibraryAppletProxy)},
-		{0x12C, SFUNC(appletAE::OpenOverlayAppletProxy)},
-        {0x15E, SFUNC(appletAE::OpenApplicationProxy)},
+    appletAE::appletAE(const DeviceState& state, ServiceManager& manager) : BaseService(state, manager, false, Service::am_appletAE, {
+        {0x64, SFUNC(appletAE::OpenSystemAppletProxy)},
+        {0xC8, SFUNC(appletAE::OpenLibraryAppletProxy)},
+        {0xC9, SFUNC(appletAE::OpenLibraryAppletProxy)},
+        {0x12C, SFUNC(appletAE::OpenOverlayAppletProxy)},
+        {0x15E, SFUNC(appletAE::OpenApplicationProxy)}
     }) {}
 
     void appletAE::OpenLibraryAppletProxy(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
@@ -26,13 +26,13 @@ namespace skyline::kernel::service::am {
         manager.RegisterService(SRVREG(IApplicationProxy), session, response);
     }
 
-	void appletAE::OpenSystemAppletProxy(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
-		manager.RegisterService(SRVREG(ISystemAppletProxy), session, response);
-	}
+    void appletAE::OpenOverlayAppletProxy(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
+        manager.RegisterService(SRVREG(IOverlayAppletProxy), session, response);
+    }
 
-	void appletAE::OpenOverlayAppletProxy(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
-		manager.RegisterService(SRVREG(IOverlayAppletProxy), session, response);
-	}
+    void appletAE::OpenSystemAppletProxy(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
+        manager.RegisterService(SRVREG(ISystemAppletProxy), session, response);
+    }
 
     BaseProxy::BaseProxy(const DeviceState &state, ServiceManager &manager, Service serviceType, const std::unordered_map<u32, std::function<void(type::KSession &, ipc::IpcRequest &, ipc::IpcResponse &)>> &vTable) : BaseService(state, manager, false, serviceType, vTable) {}
 
@@ -64,6 +64,10 @@ namespace skyline::kernel::service::am {
         manager.RegisterService(SRVREG(IDebugFunctions), session, response);
     }
 
+    void BaseProxy::GetAppletCommonFunctions(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
+        manager.RegisterService(SRVREG(IAppletCommonFunctions), session, response);
+    }
+
     IApplicationProxy::IApplicationProxy(const DeviceState &state, ServiceManager &manager) : BaseProxy(state, manager, Service::am_IApplicationProxy, {
         {0x0, SFUNC(BaseProxy::GetCommonStateGetter)},
         {0x1, SFUNC(BaseProxy::GetSelfController)},
@@ -89,33 +93,25 @@ namespace skyline::kernel::service::am {
         {0x3E8, SFUNC(BaseProxy::GetDebugFunctions)}
     }) {}
 
-	ISystemAppletProxy::ISystemAppletProxy(const DeviceState& state, ServiceManager& manager) : BaseProxy(state, manager, Service::am_ISystemAppletProxy, {
-		{0x0, SFUNC(BaseProxy::GetCommonStateGetter)},
-		{0x1, SFUNC(BaseProxy::GetSelfController)},
-		{0x2, SFUNC(BaseProxy::GetWindowController)},
-		{0x3, SFUNC(BaseProxy::GetAudioController)},
-		{0x4, SFUNC(BaseProxy::GetDisplayController)},
-		{0xB, SFUNC(BaseProxy::GetLibraryAppletCreator)},
-		{0x17, SFUNC(ISystemAppletProxy::GetAppletCommonFunctions)},
-		{0x3E8, SFUNC(BaseProxy::GetDebugFunctions)}
-		}) {}
+    ISystemAppletProxy::ISystemAppletProxy(const DeviceState& state, ServiceManager& manager) : BaseProxy(state, manager, Service::am_ISystemAppletProxy, {
+        {0x0, SFUNC(BaseProxy::GetCommonStateGetter)},
+        {0x1, SFUNC(BaseProxy::GetSelfController)},
+        {0x2, SFUNC(BaseProxy::GetWindowController)},
+        {0x3, SFUNC(BaseProxy::GetAudioController)},
+        {0x4, SFUNC(BaseProxy::GetDisplayController)},
+        {0xB, SFUNC(BaseProxy::GetLibraryAppletCreator)},
+        {0x17, SFUNC(BaseProxy::GetAppletCommonFunctions)},
+        {0x3E8, SFUNC(BaseProxy::GetDebugFunctions)}
+    }) {}
 
-	void ISystemAppletProxy::GetAppletCommonFunctions(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
-		manager.RegisterService(SRVREG(IAppletCommonFunctions), session, response);
-	}
-
-	IOverlayAppletProxy::IOverlayAppletProxy(const DeviceState& state, ServiceManager& manager) : BaseProxy(state, manager, Service::am_IOverlayAppletProxy, {
-		{0x0, SFUNC(BaseProxy::GetCommonStateGetter)},
-		{0x1, SFUNC(BaseProxy::GetSelfController)},
-		{0x2, SFUNC(BaseProxy::GetWindowController)},
-		{0x3, SFUNC(BaseProxy::GetAudioController)},
-		{0x4, SFUNC(BaseProxy::GetDisplayController)},
-		{0xB, SFUNC(BaseProxy::GetLibraryAppletCreator)},
-		{0x15, SFUNC(IOverlayAppletProxy::GetAppletCommonFunctions)},
-		{0x3E8, SFUNC(BaseProxy::GetDebugFunctions)}
-		}) {}
-
-	void IOverlayAppletProxy::GetAppletCommonFunctions(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response) {
-		manager.RegisterService(SRVREG(IAppletCommonFunctions), session, response);
-	}
+    IOverlayAppletProxy::IOverlayAppletProxy(const DeviceState& state, ServiceManager& manager) : BaseProxy(state, manager, Service::am_IOverlayAppletProxy, {
+        {0x0, SFUNC(BaseProxy::GetCommonStateGetter)},
+        {0x1, SFUNC(BaseProxy::GetSelfController)},
+        {0x2, SFUNC(BaseProxy::GetWindowController)},
+        {0x3, SFUNC(BaseProxy::GetAudioController)},
+        {0x4, SFUNC(BaseProxy::GetDisplayController)},
+        {0xB, SFUNC(BaseProxy::GetLibraryAppletCreator)},
+        {0x15, SFUNC(BaseProxy::GetAppletCommonFunctions)},
+        {0x3E8, SFUNC(BaseProxy::GetDebugFunctions)}
+    }) {}
 }

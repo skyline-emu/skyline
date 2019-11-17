@@ -28,6 +28,8 @@ namespace skyline::kernel::service::am {
 
         std::shared_ptr<type::KEvent> messageEvent; //!< The event signalled when there is a message available
         std::queue<Message> messageQueue;
+		u32 width;
+		u32 height;
 
         enum class FocusState : u8 {
             InFocus = 1, //!< The application is in foreground
@@ -72,6 +74,8 @@ namespace skyline::kernel::service::am {
          * @brief This returns the current PerformanceMode (Same as operationMode but u32) (https://switchbrew.org/wiki/Applet_Manager_services#GetPerformanceMode)
          */
         void GetPerformanceMode(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response);
+
+		void GetDefaultDisplayResolution(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response);
     };
 
     /**
@@ -169,4 +173,9 @@ namespace skyline::kernel::service::am {
       public:
         IDebugFunctions(const DeviceState &state, ServiceManager &manager);
     };
+
+	class IAppletCommonFunctions : public BaseService {
+	public:
+		IAppletCommonFunctions(const DeviceState& state, ServiceManager& manager);
+	};
 }

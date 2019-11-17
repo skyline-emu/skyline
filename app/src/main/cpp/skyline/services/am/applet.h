@@ -33,6 +33,10 @@ namespace skyline::kernel::service::am {
          * @brief This returns #IApplicationProxy (https://switchbrew.org/wiki/Applet_Manager_services#OpenApplicationProxy)
          */
         void OpenApplicationProxy(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response);
+
+		void OpenSystemAppletProxy(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response);
+
+		void OpenOverlayAppletProxy(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response);
     };
 
     /**
@@ -91,6 +95,13 @@ namespace skyline::kernel::service::am {
         void GetApplicationFunctions(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response);
     };
 
+	class ISystemAppletProxy : public BaseProxy {
+	  public:
+		ISystemAppletProxy(const DeviceState& state, ServiceManager& manager);
+
+		void GetAppletCommonFunctions(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response);
+	};
+
     /**
      * @brief ILibraryAppletProxy returns handles to various services (https://switchbrew.org/wiki/Applet_Manager_services#ILibraryAppletProxy)
      */
@@ -98,4 +109,11 @@ namespace skyline::kernel::service::am {
       public:
         ILibraryAppletProxy(const DeviceState &state, ServiceManager &manager);
     };
+
+	class IOverlayAppletProxy : public BaseProxy {
+	public:
+		IOverlayAppletProxy(const DeviceState& state, ServiceManager& manager);
+
+		void GetAppletCommonFunctions(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response);
+	};
 }

@@ -74,7 +74,7 @@ namespace skyline::kernel::service::am {
         void GetPerformanceMode(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response);
 
         /**
-         * @brief This returns the current resolution width and resolution height in two u32 (https://switchbrew.org/wiki/Applet_Manager_services#GetDefaultDisplayResolution)
+         * @brief This returns the current display width and height in two u32s (https://switchbrew.org/wiki/Applet_Manager_services#GetDefaultDisplayResolution)
          */
         void GetDefaultDisplayResolution(type::KSession& session, ipc::IpcRequest& request, ipc::IpcResponse& response);
     };

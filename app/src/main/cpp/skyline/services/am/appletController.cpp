@@ -29,20 +29,20 @@ namespace skyline::service::am {
             response.errorCode = constant::status::NoMessages;
             return;
         }
-        response.WriteValue<u32>(static_cast<u32>(messageQueue.front()));
+        response.Push<u32>(static_cast<u32>(messageQueue.front()));
         messageQueue.pop();
     }
 
     void ICommonStateGetter::GetCurrentFocusState(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
-        response.WriteValue<u8>(static_cast<u8>(focusState));
+        response.Push<u8>(static_cast<u8>(focusState));
     }
 
     void ICommonStateGetter::GetOperationMode(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
-        response.WriteValue<u8>(static_cast<u8>(operationMode));
+        response.Push<u8>(static_cast<u8>(operationMode));
     }
 
     void ICommonStateGetter::GetPerformanceMode(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
-        response.WriteValue<u32>(static_cast<u32>(operationMode));
+        response.Push<u32>(static_cast<u32>(operationMode));
     }
 
     ISelfController::ISelfController(const DeviceState &state, ServiceManager &manager) : BaseService(state, manager, false, Service::am_ISelfController, {
@@ -66,7 +66,7 @@ namespace skyline::service::am {
         if (state.gpu->layerStatus == gpu::LayerStatus::Initialized)
             throw exception("The application is creating more than one layer");
         state.gpu->layerStatus = gpu::LayerStatus::Initialized;
-        response.WriteValue<u64>(0);
+        response.Push<u64>(0);
     }
 
     IWindowController::IWindowController(const DeviceState &state, ServiceManager &manager) : BaseService(state, manager, false, Service::am_IWindowController, {
@@ -75,7 +75,7 @@ namespace skyline::service::am {
     }) {}
 
     void IWindowController::GetAppletResourceUserId(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
-        response.WriteValue(static_cast<u64>(state.thisProcess->mainThread));
+        response.Push(static_cast<u64>(state.thisProcess->mainThread));
     }
 
     void IWindowController::AcquireForegroundRights(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {}
@@ -94,7 +94,7 @@ namespace skyline::service::am {
     }) {}
 
     void IApplicationFunctions::NotifyRunning(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
-        response.WriteValue<u8>(1);
+        response.Push<u8>(1);
     }
 
     IDebugFunctions::IDebugFunctions(const DeviceState &state, ServiceManager &manager) : BaseService(state, manager, false, Service::am_IDebugFunctions, {

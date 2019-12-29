@@ -14,6 +14,8 @@ endif()
 set(CMAKE_POLICY_DEFAULT_CMP0048 OLD)
 add_subdirectory("libraries/tinyxml2")
 add_subdirectory("libraries/fmt")
+add_subdirectory("libraries/lz4/contrib/cmake_unofficial")
+target_include_directories(lz4_static INTERFACE libraries/lz4/lib)
 set(CMAKE_POLICY_DEFAULT_CMP0048 NEW)
 
 include_directories(${source_DIR}/skyline)
@@ -33,6 +35,7 @@ add_library(skyline SHARED
         ${source_DIR}/skyline/gpu/devices/nvhost_as_gpu.cpp
         ${source_DIR}/skyline/os.cpp
         ${source_DIR}/skyline/loader/nro.cpp
+        ${source_DIR}/skyline/loader/nso.cpp
         ${source_DIR}/skyline/kernel/ipc.cpp
         ${source_DIR}/skyline/kernel/svc.cpp
         ${source_DIR}/skyline/kernel/types/KSyncObject.cpp
@@ -56,5 +59,5 @@ add_library(skyline SHARED
         ${source_DIR}/skyline/services/vi/vi_m.cpp
         )
 
-target_link_libraries(skyline vulkan GLESv3 EGL android fmt tinyxml2)
+target_link_libraries(skyline vulkan GLESv3 EGL android fmt tinyxml2 lz4_static)
 target_compile_options(skyline PRIVATE -Wno-c++17-extensions)

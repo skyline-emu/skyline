@@ -20,6 +20,7 @@ import emu.skyline.adapter.GameAdapter
 import emu.skyline.adapter.GameItem
 import emu.skyline.loader.BaseLoader
 import emu.skyline.loader.NroLoader
+import emu.skyline.loader.NsoLoader
 import emu.skyline.loader.TitleEntry
 import emu.skyline.utility.GameDialog
 import emu.skyline.utility.RandomAccessDocument
@@ -69,13 +70,23 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             }
         }
         try {
+            var romsFound = false
             adapter.clear()
-            val entries: List<TitleEntry> = findFile("nro", NroLoader(this), DocumentFile.fromTreeUri(this, Uri.parse(sharedPreferences.getString("search_location", "")))!!, ArrayList())
-            if (entries.isNotEmpty()) {
+            val nroEntries: List<TitleEntry> = findFile("nro", NroLoader(this), DocumentFile.fromTreeUri(this, Uri.parse(sharedPreferences.getString("search_location", "")))!!, ArrayList())
+            if (nroEntries.isNotEmpty()) {
                 adapter.addHeader(getString(R.string.nro))
-                for (entry in entries)
+                for (entry in nroEntries)
                     adapter.addItem(GameItem(entry))
-            } else {
+                romsFound = true
+            }
+            val nsoEntries: List<TitleEntry> = findFile("nso", NsoLoader(this), DocumentFile.fromTreeUri(this, Uri.parse(sharedPreferences.getString("search_location", "")))!!, ArrayList())
+            if (nsoEntries.isNotEmpty()) {
+                adapter.addHeader(getString(R.string.nso))
+                for (entry in nsoEntries)
+                    adapter.addItem(GameItem(entry))
+                romsFound = true
+            }
+            if (!romsFound) {
                 adapter.addHeader(getString(R.string.no_rom))
             }
             try {

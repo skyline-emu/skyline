@@ -45,7 +45,8 @@ namespace skyline {
         constexpr size_t TlsSlotSize = 0x200; //!< The size of a single TLS slot
         constexpr u8 TlsSlots = PAGE_SIZE / TlsSlotSize; //!< The amount of TLS slots in a single page
         // Loader
-        constexpr u32 NroMagic = 0x304F524E; //!< "NRO0" in reverse, this is written at the start of every NRO file
+        constexpr u32 NroMagic = 0x304F524E; //!< "NRO0" in reverse, this is written at offset 0x10 in every NRO file
+        constexpr u32 NsoMagic = 0x304F534E; //!< "NSO0" in reverse, this is written at the start of every NSO file
         // NCE
         constexpr u8 NumRegs = 31; //!< The amount of registers that ARMv8 has
         constexpr u16 SvcLast = 0x7F; //!< The index of the last SVC
@@ -101,6 +102,7 @@ namespace skyline {
      */
     enum class TitleFormat {
         NRO, //!< The NRO format: https://switchbrew.org/wiki/NRO
+        NSO, //!< The NSO format: https://switchbrew.org/wiki/NSO
         XCI, //!< The XCI format: https://switchbrew.org/wiki/XCI
         NSP, //!< The NSP format from "nspwn" exploit: https://switchbrew.org/wiki/Switch_System_Flaws
     };

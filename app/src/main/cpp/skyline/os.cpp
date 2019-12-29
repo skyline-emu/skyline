@@ -1,17 +1,27 @@
 #include "os.h"
 #include "kernel/svc.h"
 #include "loader/nro.h"
+#include "loader/nso.h"
 
 namespace skyline::kernel {
     OS::OS(std::shared_ptr<JvmManager>& jvmManager, std::shared_ptr<Logger> &logger, std::shared_ptr<Settings> &settings) : state(this, thisProcess, thisThread, jvmManager, settings, logger), serviceManager(state) {}
 
     void OS::Execute(const int romFd, const TitleFormat romType) {
         auto process = CreateProcess(constant::BaseAddr, constant::DefStackSize);
-        if (romType == TitleFormat::NRO) {
-            loader::NroLoader loader(romFd);
-            loader.LoadProcessData(process, state);
-        } else
-            throw exception("Unsupported ROM extension.");
+        switch(romType) {
+            case TitleFormat::NRO: {
+                loader::NroLoader nroLoader(romFd);
+                nroLoader.LoadProcessData(process, state);
+                break;
+            }
+            case TitleFormat::NSO: {
+                loader::NsoLoader nsoLoader(romFd);
+                nsoLoader.LoadProcessData(process, state);
+                break;
+            }
+            default:
+                throw exception("Unsupported ROM extension.");
+        }
         process->threadMap.at(process->mainThread)->Start(); // The kernel itself is responsible for starting the main thread
         state.nce->Execute();
     }

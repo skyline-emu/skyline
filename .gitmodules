@@ -4,3 +4,6 @@
 [submodule "app/libraries/fmt"]
 	path = app/libraries/fmt
 	url = https://github.com/fmtlib/fmt
+[submodule "app/libraries/lz4"]
+	path = app/libraries/lz4
+	url = https://github.com/lz4/lz4

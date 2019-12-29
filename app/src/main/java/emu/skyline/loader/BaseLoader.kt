@@ -16,7 +16,7 @@ import java.io.Serializable
 import java.util.*
 
 enum class TitleFormat {
-    NRO, XCI, NSP
+    NRO, NSO, XCI, NSP
 }
 
 fun getTitleFormat(uri: Uri, contentResolver: ContentResolver): TitleFormat {

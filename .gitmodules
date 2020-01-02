@@ -4,3 +4,6 @@
 [submodule "app/libraries/fmt"]
 	path = app/libraries/fmt
 	url = https://github.com/fmtlib/fmt
+[submodule "app/libraries/oboe"]
+	path = app/libraries/oboe
+	url = https://github.com/google/oboe

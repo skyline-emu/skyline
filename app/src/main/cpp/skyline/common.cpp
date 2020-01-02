@@ -1,6 +1,7 @@
 #include "common.h"
 #include "nce.h"
 #include "gpu.h"
+#include "audio.h"
 #include <tinyxml2.h>
 
 namespace skyline {
@@ -103,6 +104,7 @@ namespace skyline {
         // We assign these later as they use the state in their constructor and we don't want null pointers
         nce = std::move(std::make_shared<NCE>(*this));
         gpu = std::move(std::make_shared<gpu::GPU>(*this));
+        audio = std::move(std::make_shared<audio::Audio>(*this));
     }
 
     thread_local std::shared_ptr<kernel::type::KThread> DeviceState::thread = 0;

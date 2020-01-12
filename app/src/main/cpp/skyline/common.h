@@ -17,6 +17,7 @@
 #include <string>
 #include <jni.h>
 #include "nce/guest_common.h"
+#include "filesystem/vfs.h"
 
 namespace skyline {
     using handle_t = u32; //!< The type of a kernel handle
@@ -329,5 +330,6 @@ namespace skyline {
         std::shared_ptr<JvmManager> jvmManager; //!< This holds a reference to the JvmManager class
         std::shared_ptr<Settings> settings; //!< This holds a reference to the Settings class
         std::shared_ptr<Logger> logger; //!< This holds a reference to the Logger class
+        std::shared_ptr<filesystem::Vfs> fileSystem; //!< This holds referencet to the virtual file system class
     };
 }

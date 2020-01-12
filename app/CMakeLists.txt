@@ -27,6 +27,7 @@ add_library(skyline SHARED
         ${source_DIR}/skyline/nce.cpp
         ${source_DIR}/skyline/jvm.cpp
         ${source_DIR}/skyline/gpu.cpp
+        ${source_DIR}/skyline/filesystem/vfs.cpp
         ${source_DIR}/skyline/gpu/display.cpp
         ${source_DIR}/skyline/gpu/parcel.cpp
         ${source_DIR}/skyline/gpu/devices/nvhost_ctrl.cpp

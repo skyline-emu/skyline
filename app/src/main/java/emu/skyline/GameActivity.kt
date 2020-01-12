@@ -41,6 +41,8 @@ class GameActivity : AppCompatActivity(), SurfaceHolder.Callback, InputQueue.Cal
         preferenceFd = ParcelFileDescriptor.open(preference, ParcelFileDescriptor.MODE_READ_WRITE)
         val log = File("${applicationInfo.dataDir}/skyline.log")
         logFd = ParcelFileDescriptor.open(log, ParcelFileDescriptor.MODE_CREATE or ParcelFileDescriptor.MODE_READ_WRITE)
+        val vfsDir = File("${applicationInfo.dataDir}/vfs")
+        vfsDir.mkdirs()
         window.setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN)
         game_view.holder.addCallback(this)
         //window.takeInputQueue(this)

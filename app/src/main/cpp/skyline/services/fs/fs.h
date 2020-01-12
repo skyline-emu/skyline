@@ -31,6 +31,11 @@ namespace skyline::service::fs {
          * @brief This returns a handle to an instance of #IFileSystem (https://switchbrew.org/wiki/Filesystem_services#IFileSystem) with type SDCard
          */
         void OpenSdCardFileSystem(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response);
+
+        /**
+         * @brief OpenDataStorageByCurrentProcess() -> object<nn::fssrv::sf::IStorage> data_storage
+         */
+        void OpenDataStorageByCurrentProcess(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response);
     };
 
     /**
@@ -41,5 +46,24 @@ namespace skyline::service::fs {
         FsType type;
 
         IFileSystem(FsType type, const DeviceState &state, ServiceManager &manager);
+    };
+
+    /**
+     * @brief This is the interface for a raw device, usually a block device. (https://switchbrew.org/wiki/Filesystem_services#IFileSystem#IStorage)
+     */
+    class IStorage : public BaseService {
+      public:
+        std::vector<u8> data;
+
+        /**
+         * @brief constructor for IStorage service
+         * @param data buffer of a blcok device
+         */
+        IStorage(const std::vector<u8> dataVec, const DeviceState &state, ServiceManager &manager);
+
+        /**
+         * @brief Takes a type-0x46 buffer, an offset and length.(https://switchbrew.org/wiki/Filesystem_services#IStorage#Read)
+         */
+        void Read(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response);
     };
 }

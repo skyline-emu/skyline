@@ -1,9 +1,12 @@
+#include <fstream>
 #include <vector>
 #include "nro.h"
 
 namespace skyline::loader {
     NroLoader::NroLoader(const int romFd) : Loader(romFd) {
         ReadOffset((u32 *) &header, 0x0, sizeof(NroHeader));
+        ReadOffset(&assetOff, 0x18, sizeof(unsigned int));
+        ReadOffset(&assets, assetOff, sizeof(AssetHeader));
         if (header.magic != constant::NroMagic)
             throw exception("Invalid NRO magic! 0x{0:X}", header.magic);
         mainEntry = constant::BaseAddr;
@@ -39,6 +42,11 @@ namespace skyline::loader {
 
         process->MapPrivateRegion(constant::BaseAddr + textSize + rodataSize + dataSize + header.bssSize, patchSize, {true, true, true}, memory::Type::CodeStatic, memory::Region::Text); // RWX
         state.logger->Debug("Successfully mapped region .patch @ 0x{0:X}, Size = 0x{1:X}", constant::BaseAddr + textSize + rodataSize + dataSize + header.bssSize, patchSize);
+
+        state.fileSystem->romFs.resize(assets.aRomFs.size);
+        ReadOffset(state.fileSystem->romFs.data(), assetOff + assets.aRomFs.offset, assets.aRomFs.size);
+        state.logger->Debug("Sucessfully initialized romFS");
+
 
         process->WriteMemory(text.data(), constant::BaseAddr, textSize);
         process->WriteMemory(rodata.data(), constant::BaseAddr + textSize, rodataSize);

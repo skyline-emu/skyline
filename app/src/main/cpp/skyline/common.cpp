@@ -103,6 +103,9 @@ namespace skyline {
         // We assign these later as they use the state in their constructor and we don't want null pointers
         nce = std::move(std::make_shared<NCE>(*this));
         gpu = std::move(std::make_shared<gpu::GPU>(*this));
+
+        // Initialize filesystem
+        fileSystem = std::move(std::make_shared<skyline::filesystem::Vfs>());
     }
 
     thread_local std::shared_ptr<kernel::type::KThread> DeviceState::thread = 0;

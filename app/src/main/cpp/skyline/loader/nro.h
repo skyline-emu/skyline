@@ -6,6 +6,8 @@
 namespace skyline::loader {
     class NroLoader : public Loader {
       private:
+        unsigned int assetOff; //!< Offset to AssetHeader
+
         /**
          * @brief This holds a single data segment's offset and size
          */
@@ -40,6 +42,25 @@ namespace skyline::loader {
             NroSegmentHeader dynstr; //!< The .dynstr segment header
             NroSegmentHeader dynsym; //!< The .dynsym segment header
         } header{};
+
+        /**
+         * @brief This holds the Asset Section of a data segment
+         */
+        struct AssetSection {
+            u64 offset; //!< offset of data in the file
+            u64 size; //!< size of data
+        };
+
+        /**
+        * @brief This holds the Asset header of an NRO file
+        */
+        struct AssetHeader {
+            u8 magic[0x4]; //!< Magic "ASET"
+            u8 format[0x4]; //!< Format Version (== 0)
+            AssetSection aIcon; //!< Asset Section of Homebrew icon
+            AssetSection aNacp;
+            AssetSection aRomFs; //!< Asset Section of romFS
+        } assets{};
 
       public:
         /**

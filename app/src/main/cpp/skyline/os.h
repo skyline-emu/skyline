@@ -8,6 +8,7 @@
 #include "kernel/types/KThread.h"
 #include "services/serviceman.h"
 #include "gpu.h"
+#import "input.h"
 
 namespace skyline::kernel {
     /**
@@ -19,6 +20,7 @@ namespace skyline::kernel {
 
       public:
         std::shared_ptr<type::KProcess> process; //!< The KProcess object for the emulator, representing the guest process
+        std::shared_ptr<input::Input> input; //!< This manages all input devices in the guest
         service::ServiceManager serviceManager; //!< This manages all of the service functions
         MemoryManager memory; //!< The MemoryManager object for this process
 

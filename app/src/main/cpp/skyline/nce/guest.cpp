@@ -97,6 +97,7 @@ namespace skyline::guest {
         ctx->pc = pc;
         ctx->commandId = svc;
         if (svc == 0xB) { // svcSleepThread
+            return;
             switch (ctx->registers.x0) {
                 case 0:
                 case 1:

@@ -25,8 +25,7 @@ namespace skyline {
                         if (kernel::svc::SvcTable[svc]) {
                             state.logger->Debug("SVC called 0x{:X}", svc);
                             (*kernel::svc::SvcTable[svc])(state);
-                        } else
-                            throw exception("Unimplemented SVC 0x{:X}", svc);
+                        }
                     } catch (const std::exception &e) {
                         throw exception("{} (SVC: 0x{:X})", e.what(), svc);
                     }
@@ -299,29 +298,8 @@ namespace skyline {
                         patch.push_back(ldrX0);
                     patch.push_back(bret.raw);
                 } else if (instrMrs->srcReg == constant::CntpctEl0) {
-                    instr::B bjunc(offset);
-                    if (instrMrs->destReg == 0)
-                        offset += cntpctEl0X0.size() * sizeof(u32);
-                    else if (instrMrs->destReg == 1)
-                        offset += cntpctEl0X1.size() * sizeof(u32);
-                    else
-                        offset += cntpctEl0Xn.size() * sizeof(u32);
-                    instr::B bret(-offset + sizeof(u32));
-                    offset += sizeof(bret);
-
-                    *address = bjunc.raw;
-                    if (instrMrs->destReg == 0)
-                        for (auto &instr : cntpctEl0X0)
-                            patch.push_back(instr);
-                    else if (instrMrs->destReg == 1)
-                        for (auto &instr : cntpctEl0X1)
-                            patch.push_back(instr);
-                    else {
-                        cntpctEl0Xn[13] = instr::Fcvtzu(regs::X(instrMrs->destReg), 0).raw;
-                        for (auto &instr : cntpctEl0Xn)
-                            patch.push_back(instr);
-                    }
-                    patch.push_back(bret.raw);
+                    instr::Mrs mrs(constant::CntvctEl0, regs::X(instrMrs->destReg));
+                    *address = mrs.raw;
                 } else if (instrMrs->srcReg == constant::CntfrqEl0) {
                     instr::B bjunc(offset);
                     auto movFreq = instr::MoveU32Reg(static_cast<regs::X>(instrMrs->destReg), constant::TegraX1Freq);

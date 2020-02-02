@@ -366,6 +366,9 @@ namespace skyline {
     namespace audio {
         class Audio;
     }
+    namespace input {
+        class Input;
+    }
 
     /**
      * @brief This struct is used to hold the state of a device
@@ -380,6 +383,7 @@ namespace skyline {
         std::shared_ptr<NCE> nce; //!< This holds a reference to the NCE class
         std::shared_ptr<gpu::GPU> gpu; //!< This holds a reference to the GPU class
         std::shared_ptr<audio::Audio> audio; //!< This holds a reference to the Audio class
+        std::shared_ptr<input::Input> input; //!< This holds a reference to the Input class
         std::shared_ptr<JvmManager> jvmManager; //!< This holds a reference to the JvmManager class
         std::shared_ptr<Settings> settings; //!< This holds a reference to the Settings class
         std::shared_ptr<Logger> logger; //!< This holds a reference to the Logger class

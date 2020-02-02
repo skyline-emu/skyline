@@ -31,6 +31,8 @@ add_library(skyline SHARED
         ${source_DIR}/skyline/nce/guest.cpp
         ${source_DIR}/skyline/nce.cpp
         ${source_DIR}/skyline/jvm.cpp
+        ${source_DIR}/skyline/input.cpp
+        ${source_DIR}/skyline/input/npad.cpp
         ${source_DIR}/skyline/gpu.cpp
         ${source_DIR}/skyline/gpu/display.cpp
         ${source_DIR}/skyline/gpu/parcel.cpp

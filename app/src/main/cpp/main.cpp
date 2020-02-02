@@ -1,4 +1,5 @@
 #include "skyline/common.h"
+#include "skyline/input/common.h"
 #include "skyline/os.h"
 #include "skyline/jvm.h"
 #include <unistd.h>
@@ -8,6 +9,7 @@ bool Halt;
 jobject Surface;
 uint FaultCount;
 skyline::GroupMutex jniMtx;
+std::shared_ptr<skyline::kernel::OS> os;
 
 void signalHandler(int signal) {
     syslog(LOG_ERR, "Halting program due to signal: %s", strsignal(signal));
@@ -39,11 +41,11 @@ extern "C" JNIEXPORT void Java_emu_skyline_GameActivity_executeRom(JNIEnv *env, 
     auto start = std::chrono::steady_clock::now();
 
     try {
-        skyline::kernel::OS os(jvmManager, logger, settings);
+        os = std::make_shared<skyline::kernel::OS>(jvmManager, logger, settings);
         const char *romString = env->GetStringUTFChars(romJstring, nullptr);
         logger->Info("Launching ROM {}", romString);
         env->ReleaseStringUTFChars(romJstring, romString);
-        os.Execute(romFd, static_cast<skyline::TitleFormat>(romType));
+        os->Execute(romFd, static_cast<skyline::TitleFormat>(romType));
         logger->Info("Emulation has ended");
     } catch (std::exception &e) {
         logger->Error(e.what());
@@ -70,4 +72,15 @@ extern "C" JNIEXPORT void Java_emu_skyline_GameActivity_setSurface(JNIEnv *env, 
     else
         Surface = surface;
     jniMtx.unlock();
+}
+
+extern "C" JNIEXPORT void Java_emu_skyline_GameActivity_setButtonState(JNIEnv *env, jobject instance, jlong id, jint state) {
+    skyline::input::npad::NpadButton npadButton;
+    npadButton.raw = static_cast<skyline::u64>(id);
+
+    os->input->npad[0]->SetButtonState(npadButton, static_cast<skyline::input::npad::NpadButtonState>(state));
+}
+
+extern "C" JNIEXPORT void Java_emu_skyline_GameActivity_setAxisValue(JNIEnv *env, jobject instance, jint id, jint value) {
+    os->input->npad[0]->SetAxisValue(static_cast<skyline::input::npad::NpadAxisId>(id), value);
 }

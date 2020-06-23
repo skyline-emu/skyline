@@ -134,9 +134,9 @@ namespace skyline::kernel::ipc {
         }
     }
 
-    IpcResponse::IpcResponse(bool isDomain, const DeviceState &state) : isDomain(isDomain), state(state) {}
+    IpcResponse::IpcResponse(const DeviceState &state) : state(state) {}
 
-    void IpcResponse::WriteResponse() {
+    void IpcResponse::WriteResponse(bool isDomain) {
         auto tls = state.process->GetPointer<u8>(state.thread->tls);
         u8 *pointer = tls;
 

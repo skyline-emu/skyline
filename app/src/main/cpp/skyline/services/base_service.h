@@ -62,6 +62,7 @@ namespace skyline::service {
         hosbinder_IHOSBinderDriver,
         pl_IPlatformServiceManager
         aocsrv_IAddOnContentManager,
+        pctl_IParentalControlServiceFactory,
     };
 
     /**
@@ -86,8 +87,12 @@ namespace skyline::service {
         {"nvdrv:s", Service::nvdrv_INvDrvServices},
         {"nvdrv:t", Service::nvdrv_INvDrvServices},
         {"vi:m", Service::visrv_IManagerRootService},
-        {"pl:u", Service::pl_IPlatformServiceManager}
-        {"aoc:u", Service::aocsrv_IAddOnContentManager}
+        {"pl:u", Service::pl_IPlatformServiceManager},
+        {"aoc:u", Service::aocsrv_IAddOnContentManager},
+        {"pctl", Service::pctl_IParentalControlServiceFactory},
+        {"pctl:a", Service::pctl_IParentalControlServiceFactory},
+        {"pctl:s", Service::pctl_IParentalControlServiceFactory},
+        {"pctl:r", Service::pctl_IParentalControlServiceFactory}
     };
 
     class ServiceManager;

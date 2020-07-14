@@ -95,6 +95,7 @@ add_library(skyline SHARED
         ${source_DIR}/skyline/services/timesrv/ITimeZoneService.cpp
         ${source_DIR}/skyline/services/fssrv/IFileSystemProxy.cpp
         ${source_DIR}/skyline/services/fssrv/IFileSystem.cpp
+        ${source_DIR}/skyline/services/fssrv/IFile.cpp
         ${source_DIR}/skyline/services/fssrv/IStorage.cpp
         ${source_DIR}/skyline/services/nvdrv/INvDrvServices.cpp
         ${source_DIR}/skyline/services/nvdrv/devices/nvmap.cpp

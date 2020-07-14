@@ -38,6 +38,8 @@ namespace skyline {
         // Status codes
         namespace status {
             constexpr u32 Success = 0x0; //!< "Success"
+            constexpr u32 PathDoesNotExist = 0x202; //!< "Path does not exist"
+            constexpr u32 GenericError = 0x272; //!< "Generic error"
             constexpr u32 NoMessages = 0x680; //!< "No message available"
             constexpr u32 ServiceInvName = 0xC15; //!< "Invalid name"
             constexpr u32 ServiceNotReg = 0xE15; //!< "Service not registered"

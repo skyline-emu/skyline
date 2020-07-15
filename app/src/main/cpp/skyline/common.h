@@ -221,10 +221,10 @@ namespace skyline {
         LogLevel configLevel; //!< The level of logs to write
 
         /**
-         * @param fd A FD to the log file
+         * @param path The path of the log file
          * @param configLevel The minimum level of logs to write
          */
-        Logger(int fd, LogLevel configLevel);
+        Logger(std::string path, LogLevel configLevel);
 
         /**
          * @brief Writes the termination message to the log file

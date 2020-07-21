@@ -335,5 +335,11 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         if (layoutType != adapter.layoutType) {
             setupAppList()
         }
+
+        val gridCardMagin = resources.getDimensionPixelSize(R.dimen.app_card_margin_half)
+        when (layoutType) {
+            LayoutType.List -> app_list.setPadding(0, 0, 0, 0)
+            LayoutType.Grid, LayoutType.GridCompact -> app_list.setPadding(gridCardMagin, 0, gridCardMagin, 0)
+        }
     }
 }

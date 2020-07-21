@@ -66,10 +66,9 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                         romFile.use {
                             val entry = romFile.getAppEntry(file.uri)
 
+                            val finalFoundCurrent = foundCurrent
                             runOnUiThread {
-                                if (!foundCurrent) {
-                                    adapter.addHeader(romFormat.name)
-                                }
+                                if (!finalFoundCurrent) adapter.addHeader(romFormat.name)
 
                                 adapter.addItem(AppItem(entry))
                             }

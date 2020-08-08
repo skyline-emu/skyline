@@ -74,7 +74,7 @@ namespace skyline::vfs {
     std::optional<Directory::EntryType> OsFileSystem::GetEntryType(std::string path) {
         auto fullPath = basePath + path;
 
-        DIR *directory = opendir(fullPath.c_str());
+        auto directory = opendir(fullPath.c_str());
         if (directory) {
             closedir(directory);
             return Directory::EntryType::Directory;

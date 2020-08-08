@@ -10,7 +10,7 @@
 #include "os.h"
 
 namespace skyline::kernel {
-    OS::OS(std::shared_ptr<JvmManager> &jvmManager, std::shared_ptr<Logger> &logger, std::shared_ptr<Settings> &settings, std::string appFilesPath) : state(this, process, jvmManager, settings, logger), memory(state), serviceManager(state), appFilesPath(appFilesPath) {}
+    OS::OS(std::shared_ptr<JvmManager> &jvmManager, std::shared_ptr<Logger> &logger, std::shared_ptr<Settings> &settings, const std::string &appFilesPath) : state(this, process, jvmManager, settings, logger), memory(state), serviceManager(state), appFilesPath(appFilesPath) {}
 
     void OS::Execute(int romFd, loader::RomFormat romType) {
         auto romFile = std::make_shared<vfs::OsBacking>(romFd);

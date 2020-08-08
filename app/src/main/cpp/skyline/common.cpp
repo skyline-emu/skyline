@@ -120,7 +120,7 @@ namespace skyline {
             logger->Info("Key: {}, Value: {}, Type: Bool", iter.first, GetBool(iter.first));
     }
 
-    Logger::Logger(std::string path, LogLevel configLevel) : configLevel(configLevel) {
+    Logger::Logger(const std::string &path, LogLevel configLevel) : configLevel(configLevel) {
         logFile.open(path, std::ios::app);
         WriteHeader("Logging started");
     }

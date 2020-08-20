@@ -32,10 +32,10 @@ namespace skyline::audio {
 
     std::vector<u64> AudioTrack::GetReleasedBuffers(u32 max) {
         std::vector<u64> bufferIds;
-        std::unique_lock trackGuard(bufferLock);
+        std::lock_guard trackGuard(bufferLock);
 
         for (u32 index = 0; index < max; index++) {
-            if (!identifiers.back().released)
+            if (identifiers.empty() || !identifiers.back().released)
                 break;
             bufferIds.push_back(identifiers.back().tag);
             identifiers.pop_back();
@@ -62,11 +62,21 @@ namespace skyline::audio {
     }
 
     void AudioTrack::CheckReleasedBuffers() {
-        for (auto &identifier : identifiers) {
-            if (identifier.finalSample <= sampleCounter && !identifier.released) {
-                releaseCallback();
-                identifier.released = true;
+        bool anyReleased{};
+
+        // Avoid calling the callback with bufferLock locked as it could potentially take a long time
+        {
+            std::lock_guard guard(bufferLock);
+
+            for (auto &identifier : identifiers) {
+                if (identifier.finalSample <= sampleCounter && !identifier.released) {
+                    anyReleased = true;
+                    identifier.released = true;
+                }
             }
         }
+
+        if (anyReleased)
+            releaseCallback();
     }
 }

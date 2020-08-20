@@ -56,7 +56,7 @@ namespace skyline::service::audio {
 
             track->AppendBuffer(tag, tmpSampleBuffer);
         } else {
-            track->AppendBuffer(tag, state.process->GetPointer<i16>(data.sampleBufferPtr), data.sampleSize);
+            track->AppendBuffer(tag, state.process->GetPointer<i16>(data.sampleBufferPtr), data.sampleSize / sizeof(i16));
         }
     }
 

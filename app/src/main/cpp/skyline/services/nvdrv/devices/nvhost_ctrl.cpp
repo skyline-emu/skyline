@@ -83,7 +83,7 @@ namespace skyline::service::nvdrv::device {
             Fence fence;
             u32 timeout;
             EventValue value;
-        } args = state.process->GetReference<Data>(buffer.output.at(0).address);
+        } &args = state.process->GetReference<Data>(buffer.output.at(0).address);
 
         if (args.fence.id >= constant::MaxHwSyncpointCount) {
             buffer.status = NvStatus::BadValue;

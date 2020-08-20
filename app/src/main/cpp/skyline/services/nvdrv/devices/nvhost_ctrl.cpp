@@ -155,11 +155,7 @@ namespace skyline::service::nvdrv::device {
     }
 
     void NvHostCtrl::EventSignal(IoctlData &buffer) {
-        struct Data {
-            u16 _pad_;
-            u16 userEventId;
-        };
-        auto userEventId = state.process->GetObject<Data>(buffer.input.at(0).address).userEventId;
+        auto userEventId = static_cast<u16>(state.process->GetObject<u32>(buffer.input.at(0).address));
         state.logger->Debug("Signalling nvhost event: {}", userEventId);
 
         if (userEventId >= constant::NvHostEventCount || !events.at(userEventId)) {

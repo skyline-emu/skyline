@@ -70,6 +70,7 @@ namespace skyline::audio {
 
         /**
          * @brief Checks if any buffers have been released and calls the appropriate callback for them
+         * @note bufferLock MUST be locked when calling this
          */
         void CheckReleasedBuffers();
     };

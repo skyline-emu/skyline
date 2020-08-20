@@ -60,15 +60,10 @@ namespace skyline::audio {
     void AudioTrack::CheckReleasedBuffers() {
         bool anyReleased{};
 
-        // Avoid calling the callback with bufferLock locked as it could potentially take a long time
-        {
-            std::lock_guard guard(bufferLock);
-
-            for (auto &identifier : identifiers) {
-                if (identifier.finalSample <= sampleCounter && !identifier.released) {
-                    anyReleased = true;
-                    identifier.released = true;
-                }
+        for (auto &identifier : identifiers) {
+            if (identifier.finalSample <= sampleCounter && !identifier.released) {
+                anyReleased = true;
+                identifier.released = true;
             }
         }
 

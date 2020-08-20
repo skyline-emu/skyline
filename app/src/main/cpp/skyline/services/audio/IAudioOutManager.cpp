@@ -18,8 +18,8 @@ namespace skyline::service::audio {
     }
 
     void IAudioOutManager::OpenAudioOut(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
-        u32 sampleRate = request.Pop<u32>();
-        u16 channelCount = static_cast<u16>(request.Pop<u32>());
+        auto sampleRate{request.Pop<u32>()};
+        auto channelCount{static_cast<u16>(request.Pop<u32>())};
 
         state.logger->Debug("Opening an IAudioOut with sample rate: {}, channel count: {}", sampleRate, channelCount);
 

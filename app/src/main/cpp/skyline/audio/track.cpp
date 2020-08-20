@@ -34,7 +34,7 @@ namespace skyline::audio {
         std::vector<u64> bufferIds;
         std::lock_guard trackGuard(bufferLock);
 
-        for (u32 index = 0; index < max; index++) {
+        for (u32 index{}; index < max; index++) {
             if (identifiers.empty() || !identifiers.back().released)
                 break;
             bufferIds.push_back(identifiers.back().tag);
@@ -44,21 +44,17 @@ namespace skyline::audio {
         return bufferIds;
     }
 
-    void AudioTrack::AppendBuffer(u64 tag, const i16 *address, u64 size) {
-        BufferIdentifier identifier;
-
-        identifier.released = false;
-        identifier.tag = tag;
-
-        if (identifiers.empty())
-            identifier.finalSample = size;
-        else
-            identifier.finalSample = size + identifiers.front().finalSample;
+    void AudioTrack::AppendBuffer(u64 tag, std::span<i16> buffer) {
+        BufferIdentifier identifier{
+            .released = false,
+            .tag = tag,
+            .finalSample = identifiers.empty() ? (buffer.size()) : (buffer.size() + identifiers.front().finalSample)
+        };
 
         std::lock_guard guard(bufferLock);
 
         identifiers.push_front(identifier);
-        samples.Append(const_cast<i16 *>(address), size);
+        samples.Append(buffer);
     }
 
     void AudioTrack::CheckReleasedBuffers() {

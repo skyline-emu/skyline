@@ -10,14 +10,17 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.ConditionVariable
 import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.view.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
+import emu.skyline.input.*
 import emu.skyline.loader.getRomFormat
 import kotlinx.android.synthetic.main.emu_activity.*
 import java.io.File
+import kotlin.math.abs
 
 class EmulationActivity : AppCompatActivity(), SurfaceHolder.Callback {
     init {
@@ -35,13 +38,30 @@ class EmulationActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private lateinit var preferenceFd : ParcelFileDescriptor
 
     /**
+     * The [InputManager] class handles loading/saving the input data
+     */
+    private lateinit var input : InputManager
+
+    /**
+     * A boolean flag denoting the current operation mode of the emulator (Docked = true/Handheld = false)
+     */
+    private var operationMode : Boolean = true
+
+    /**
      * The surface object used for displaying frames
      */
+    @Volatile
     private var surface : Surface? = null
+
+    /**
+     * A condition variable keeping track of if the surface is ready or not
+     */
+    private var surfaceReady = ConditionVariable()
 
     /**
      * A boolean flag denoting if the emulation thread should call finish() or not
      */
+    @Volatile
     private var shouldFinish : Boolean = true
 
     /**
@@ -85,6 +105,68 @@ class EmulationActivity : AppCompatActivity(), SurfaceHolder.Callback {
     private external fun getFrametime() : Float
 
     /**
+     * This initializes a guest controller in libskyline
+     *
+     * @param index The arbitrary index of the controller, this is to handle matching with a partner Joy-Con
+     * @param type The type of the host controller
+     * @param partnerIndex The index of a partner Joy-Con if there is one
+     * @note This is blocking and will stall till input has been initialized on the guest
+     */
+    private external fun setController(index : Int, type : Int, partnerIndex : Int = -1)
+
+    /**
+     * This flushes the controller updates on the guest
+     *
+     * @note This is blocking and will stall till input has been initialized on the guest
+     */
+    private external fun updateControllers()
+
+    /**
+     * This sets the state of the buttons specified in the mask on a specific controller
+     *
+     * @param index The index of the controller this is directed to
+     * @param mask The mask of the button that are being set
+     * @param pressed If the buttons are being pressed or released
+     */
+    private external fun setButtonState(index : Int, mask : Long, pressed : Boolean)
+
+    /**
+     * This sets the value of a specific axis on a specific controller
+     *
+     * @param index The index of the controller this is directed to
+     * @param axis The ID of the axis that is being modified
+     * @param value The value to set the axis to
+     */
+    private external fun setAxisValue(index : Int, axis : Int, value : Int)
+
+    /**
+     * This initializes all of the controllers from [input] on the guest
+     */
+    private fun initializeControllers() {
+        for (entry in input.controllers) {
+            val controller = entry.value
+
+            if (controller.type != ControllerType.None) {
+                val type = when (controller.type) {
+                    ControllerType.None -> throw IllegalArgumentException()
+                    ControllerType.HandheldProController -> if (operationMode) ControllerType.ProController.id else ControllerType.HandheldProController.id
+                    ControllerType.ProController, ControllerType.JoyConLeft, ControllerType.JoyConRight -> controller.type.id
+                }
+
+                val partnerIndex = when (controller) {
+                    is JoyConLeftController -> controller.partnerId
+                    is JoyConRightController -> controller.partnerId
+                    else -> null
+                }
+
+                setController(entry.key, type, partnerIndex ?: -1)
+            }
+        }
+
+        updateControllers()
+    }
+
+    /**
      * This executes the specified ROM, [preferenceFd] is assumed to be valid beforehand
      *
      * @param rom The URI of the ROM to execute
@@ -94,10 +176,9 @@ class EmulationActivity : AppCompatActivity(), SurfaceHolder.Callback {
         romFd = contentResolver.openFileDescriptor(rom, "r")!!
 
         emulationThread = Thread {
-            while ((surface == null))
-                Thread.yield()
+            surfaceReady.block()
 
-            executeApplication(Uri.decode(rom.toString()), romType, romFd.fd, preferenceFd.fd, applicationContext.filesDir.canonicalPath + "/")
+            executeApplication(rom.toString(), romType, romFd.fd, preferenceFd.fd, applicationContext.filesDir.canonicalPath + "/")
 
             if (shouldFinish)
                 runOnUiThread { finish() }
@@ -120,13 +201,15 @@ class EmulationActivity : AppCompatActivity(), SurfaceHolder.Callback {
             window.insetsController?.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         } else {
             @Suppress("DEPRECATION")
-            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE
+            window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                     or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                     or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                     or View.SYSTEM_UI_FLAG_FULLSCREEN)
         }
+
+        input = InputManager(this)
 
         val preference = File("${applicationInfo.dataDir}/shared_prefs/${applicationInfo.packageName}_preferences.xml")
         preferenceFd = ParcelFileDescriptor.open(preference, ParcelFileDescriptor.MODE_READ_WRITE)
@@ -136,15 +219,18 @@ class EmulationActivity : AppCompatActivity(), SurfaceHolder.Callback {
         val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
 
         if (sharedPreferences.getBoolean("perf_stats", false)) {
-            lateinit var perfRunnable : Runnable
-
-            perfRunnable = Runnable {
-                perf_stats.text = "${getFps()} FPS\n${getFrametime()}ms"
-                perf_stats.postDelayed(perfRunnable, 250)
-            }
-
-            perf_stats.postDelayed(perfRunnable, 250)
+            perf_stats.postDelayed(object : Runnable {
+                override fun run() {
+                    perf_stats.text = "${getFps()} FPS\n${getFrametime()}ms"
+                    perf_stats.postDelayed(this, 250)
+                }
+            }, 250)
         }
+
+        operationMode = sharedPreferences.getBoolean("operation_mode", operationMode)
+
+        @Suppress("DEPRECATION") val display = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) display!! else windowManager.defaultDisplay
+        display?.supportedModes?.maxBy { it.refreshRate + (it.physicalHeight * it.physicalWidth) }?.let { window.attributes.preferredDisplayModeId = it.modeId }
 
         executeApplication(intent.data!!)
     }
@@ -186,24 +272,115 @@ class EmulationActivity : AppCompatActivity(), SurfaceHolder.Callback {
      * This sets [surface] to [holder].surface and passes it into libskyline
      */
     override fun surfaceCreated(holder : SurfaceHolder) {
-        Log.d("surfaceCreated", "Holder: ${holder.toString()}")
+        Log.d("surfaceCreated", "Holder: $holder")
         surface = holder.surface
         setSurface(surface)
+        surfaceReady.open()
     }
 
     /**
      * This is purely used for debugging surface changes
      */
     override fun surfaceChanged(holder : SurfaceHolder, format : Int, width : Int, height : Int) {
-        Log.d("surfaceChanged", "Holder: ${holder.toString()}, Format: $format, Width: $width, Height: $height")
+        Log.d("surfaceChanged", "Holder: $holder, Format: $format, Width: $width, Height: $height")
     }
 
     /**
      * This sets [surface] to null and passes it into libskyline
      */
     override fun surfaceDestroyed(holder : SurfaceHolder) {
-        Log.d("surfaceDestroyed", "Holder: ${holder.toString()}")
+        Log.d("surfaceDestroyed", "Holder: $holder")
+        surfaceReady.close()
         surface = null
         setSurface(surface)
+    }
+
+    /**
+     * This handles translating any [KeyHostEvent]s to a [GuestEvent] that is passed into libskyline
+     */
+    override fun dispatchKeyEvent(event : KeyEvent) : Boolean {
+        if (event.repeatCount != 0)
+            return super.dispatchKeyEvent(event)
+
+        val action = when (event.action) {
+            KeyEvent.ACTION_DOWN -> ButtonState.Pressed
+            KeyEvent.ACTION_UP -> ButtonState.Released
+            else -> return super.dispatchKeyEvent(event)
+        }
+
+        return when (val guestEvent = input.eventMap[KeyHostEvent(event.device.descriptor, event.keyCode)]) {
+            is ButtonGuestEvent -> {
+                if (guestEvent.button != ButtonId.Menu)
+                    setButtonState(guestEvent.id, guestEvent.button.value(), action.state)
+                true
+            }
+
+            is AxisGuestEvent -> {
+                setAxisValue(guestEvent.id, guestEvent.axis.ordinal, (if (action == ButtonState.Pressed) if (guestEvent.polarity) Short.MAX_VALUE else Short.MIN_VALUE else 0).toInt())
+                true
+            }
+
+            else -> super.dispatchKeyEvent(event)
+        }
+    }
+
+    /**
+     * The last value of the axes so the stagnant axes can be eliminated to not wastefully look them up
+     */
+    private val axesHistory = arrayOfNulls<Float>(MotionHostEvent.axes.size)
+
+    /**
+     * The last value of the HAT axes so it can be ignored in [onGenericMotionEvent] so they are handled by [dispatchKeyEvent] instead
+     */
+    private var oldHat = Pair(0.0f, 0.0f)
+
+    /**
+     * This handles translating any [MotionHostEvent]s to a [GuestEvent] that is passed into libskyline
+     */
+    override fun onGenericMotionEvent(event : MotionEvent) : Boolean {
+        if ((event.isFromSource(InputDevice.SOURCE_CLASS_JOYSTICK) || event.isFromSource(InputDevice.SOURCE_CLASS_BUTTON)) && event.action == MotionEvent.ACTION_MOVE) {
+            val hat = Pair(event.getAxisValue(MotionEvent.AXIS_HAT_X), event.getAxisValue(MotionEvent.AXIS_HAT_Y))
+
+            if (hat == oldHat) {
+                for (axisItem in MotionHostEvent.axes.withIndex()) {
+                    val axis = axisItem.value
+                    var value = event.getAxisValue(axis)
+
+                    if ((event.historySize != 0 && value != event.getHistoricalAxisValue(axis, 0)) || (axesHistory[axisItem.index]?.let { it == value } == false)) {
+                        var polarity = value >= 0
+
+                        val guestEvent = input.eventMap[MotionHostEvent(event.device.descriptor, axis, polarity)] ?: if (value == 0f) {
+                            polarity = false
+                            input.eventMap[MotionHostEvent(event.device.descriptor, axis, polarity)]
+                        } else {
+                            null
+                        }
+
+                        when (guestEvent) {
+                            is ButtonGuestEvent -> {
+                                if (guestEvent.button != ButtonId.Menu)
+                                    setButtonState(guestEvent.id, guestEvent.button.value(), if (abs(value) >= guestEvent.threshold) ButtonState.Pressed.state else ButtonState.Released.state)
+                            }
+
+                            is AxisGuestEvent -> {
+                                value = guestEvent.value(value)
+                                value = if (polarity) abs(value) else -abs(value)
+                                value = if (guestEvent.axis == AxisId.LX || guestEvent.axis == AxisId.RX) value else -value // TODO: Test this
+
+                                setAxisValue(guestEvent.id, guestEvent.axis.ordinal, (value * Short.MAX_VALUE).toInt())
+                            }
+                        }
+                    }
+
+                    axesHistory[axisItem.index] = value
+                }
+
+                return true
+            } else {
+                oldHat = hat
+            }
+        }
+
+        return super.onGenericMotionEvent(event)
     }
 }

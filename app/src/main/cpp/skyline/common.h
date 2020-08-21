@@ -75,6 +75,16 @@ namespace skyline {
         }
 
         /**
+         * @brief Returns the current time in arbitrary ticks
+         * @return The current time in ticks
+         */
+        inline u64 GetTimeTicks() {
+            u64 ticks;
+            asm("MRS %0, CNTVCT_EL0" : "=r"(ticks));
+            return ticks;
+        }
+
+        /**
          * @brief Aligns up a value to a multiple of two
          * @tparam Type The type of the values
          * @param value The value to round up
@@ -364,6 +374,9 @@ namespace skyline {
     namespace audio {
         class Audio;
     }
+    namespace input {
+        class Input;
+    }
     namespace loader {
         class Loader;
     }
@@ -381,6 +394,7 @@ namespace skyline {
         std::shared_ptr<NCE> nce; //!< This holds a reference to the NCE class
         std::shared_ptr<gpu::GPU> gpu; //!< This holds a reference to the GPU class
         std::shared_ptr<audio::Audio> audio; //!< This holds a reference to the Audio class
+        std::shared_ptr<input::Input> input; //!< This holds a reference to the Input class
         std::shared_ptr<loader::Loader> loader; //!< This holds a reference to the Loader class
         std::shared_ptr<JvmManager> jvm; //!< This holds a reference to the JvmManager class
         std::shared_ptr<Settings> settings; //!< This holds a reference to the Settings class

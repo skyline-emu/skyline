@@ -11,7 +11,7 @@ namespace skyline::service::audio::IAudioRenderer {
      */
     enum class EffectState : u8 {
         None = 0, //!< The effect isn't being used
-        New = 1
+        New = 1,
     };
 
     /**

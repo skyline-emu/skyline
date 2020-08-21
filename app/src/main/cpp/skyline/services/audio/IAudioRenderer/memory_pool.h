@@ -16,7 +16,7 @@ namespace skyline::service::audio::IAudioRenderer {
         Detached = 3,
         RequestAttach = 4,
         Attached = 5,
-        Released = 6
+        Released = 6,
     };
 
     /**

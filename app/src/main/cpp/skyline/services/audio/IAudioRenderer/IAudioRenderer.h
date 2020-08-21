@@ -42,7 +42,7 @@ namespace skyline {
          * @brief Header containing information about the software side audren implementation and the sizes of all input data
          */
         struct UpdateDataHeader {
-            u32 revision; //!< The revision of the software side audren implementation
+            u32 revision;
             u32 behaviorSize;
             u32 memoryPoolSize;
             u32 voiceSize;

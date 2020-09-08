@@ -11,7 +11,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
-import android.os.ParcelFileDescriptor
 import android.provider.OpenableColumns
 import java.io.IOException
 import java.io.ObjectInputStream
@@ -44,6 +43,22 @@ fun getRomFormat(uri : Uri, contentResolver : ContentResolver) : RomFormat {
         uriStr = cursor.getString(nameIndex)
     }
     return RomFormat.valueOf(uriStr.substring(uriStr.lastIndexOf(".") + 1).toUpperCase(Locale.ROOT))
+}
+
+/**
+ * An enumeration of all possible results when populating [RomFile]
+ */
+enum class LoaderResult(val value : Int) {
+    Success(0),
+    ParsingError(1),
+    MissingHeaderKey(2),
+    MissingTitleKey(3),
+    MissingTitleKek(4),
+    MissingKeyArea(5);
+
+    companion object {
+        fun get(value : Int) = values().first { value == it.value }
+    }
 }
 
 /**
@@ -133,79 +148,49 @@ class AppEntry : Serializable {
 /**
  * This class is used as interface between libskyline and Kotlin for loaders
  */
-internal class RomFile(val context : Context, val format : RomFormat, val file : ParcelFileDescriptor) : AutoCloseable {
+internal class RomFile(context : Context, format : RomFormat, uri : Uri) {
+
     /**
-     * This is a pointer to the corresponding C++ Loader class
+     * @note This field is filled in by native code
      */
-    var instance : Long
+    private var applicationName : String? = null
+
+    /**
+     * @note This field is filled in by native code
+     */
+    private var applicationAuthor : String? = null
+
+    /**
+     * @note This field is filled in by native code
+     */
+    private var rawIcon : ByteArray? = null
+
+    val appEntry : AppEntry
+
+    var result = LoaderResult.Success
+
+    val valid : Boolean
+        get() = result == LoaderResult.Success
 
     init {
         System.loadLibrary("skyline")
 
-        instance = initialize(format.ordinal, file.fd)
+        context.contentResolver.openFileDescriptor(uri, "r")!!.use {
+            result = LoaderResult.get(populate(format.ordinal, it.fd, context.filesDir.canonicalPath + "/"))
+        }
+
+        appEntry = if (applicationName != null && applicationAuthor != null && rawIcon != null)
+            AppEntry(applicationName!!, applicationAuthor!!, format, uri, BitmapFactory.decodeByteArray(rawIcon, 0, rawIcon!!.size))
+        else
+            AppEntry(context, format, uri)
     }
 
     /**
-     * This allocates and initializes a new loader object
+     * Parses ROM and writes its metadata to [applicationName], [applicationAuthor] and [rawIcon]
      * @param format The format of the ROM
      * @param romFd A file descriptor of the ROM
+     * @param appFilesPath Path to internal app data storage, needed to read imported keys
      * @return A pointer to the newly allocated object, or 0 if the ROM is invalid
      */
-    private external fun initialize(format : Int, romFd : Int) : Long
-
-    /**
-     * @return Whether the ROM contains assets, such as an icon or author information
-     */
-    private external fun hasAssets(instance : Long) : Boolean
-
-    /**
-     * @return A ByteArray containing the application's icon as a bitmap
-     */
-    private external fun getIcon(instance : Long) : ByteArray
-
-    /**
-     * @return A String containing the name of the application
-     */
-    private external fun getApplicationName(instance : Long) : String
-
-    /**
-     * @return A String containing the publisher of the application
-     */
-    private external fun getApplicationPublisher(instance : Long) : String
-
-    /**
-     * This destroys an existing loader object and frees it's resources
-     */
-    private external fun destroy(instance : Long)
-
-    /**
-     * This is used to get the [AppEntry] for the specified ROM
-     */
-    fun getAppEntry(uri : Uri) : AppEntry {
-        return if (hasAssets(instance)) {
-            val rawIcon = getIcon(instance)
-            val icon = if (rawIcon.isNotEmpty()) BitmapFactory.decodeByteArray(rawIcon, 0, rawIcon.size) else null
-
-            AppEntry(getApplicationName(instance), getApplicationPublisher(instance), format, uri, icon)
-        } else {
-            AppEntry(context, format, uri)
-        }
-    }
-
-    /**
-     * This checks if the currently loaded ROM is valid
-     */
-    fun valid() : Boolean {
-        return instance != 0L
-    }
-
-    /**
-     * This destroys the C++ loader object
-     */
-    override fun close() {
-        if (valid()) {
-            destroy(instance)
-            instance = 0
-        }
-    }
+    private external fun populate(format : Int, romFd : Int, appFilesPath : String) : Int
 }

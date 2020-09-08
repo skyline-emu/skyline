@@ -30,16 +30,18 @@ import emu.skyline.adapter.AppAdapter
 import emu.skyline.adapter.GridLayoutSpan
 import emu.skyline.adapter.LayoutType
 import emu.skyline.data.AppItem
+import emu.skyline.loader.LoaderResult
 import emu.skyline.loader.RomFile
 import emu.skyline.loader.RomFormat
 import kotlinx.android.synthetic.main.main_activity.*
 import kotlinx.android.synthetic.main.titlebar.*
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
 import kotlin.math.ceil
 
-class MainActivity : AppCompatActivity(), View.OnClickListener {
+class MainActivity : AppCompatActivity() {
     /**
      * This is used to get/set shared preferences
      */
@@ -50,36 +52,35 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
      */
     private lateinit var adapter : AppAdapter
 
+    private var reloading = AtomicBoolean()
+
     /**
-     * This adds all files in [directory] with [extension] as an entry in [adapter] using [loader] to load metadata
+     * This adds all files in [directory] with [extension] as an entry in [adapter] using [RomFile] to load metadata
+     *
+     * @param loaderErrors Map of [LoaderResult] as key and their corresponding list of files. Only contains files which have a different result than [LoaderResult.Success]
      */
-    private fun addEntries(extension : String, romFormat : RomFormat, directory : DocumentFile, found : Boolean = false) : Boolean {
+    private fun addEntries(extension : String, romFormat : RomFormat, directory : DocumentFile, loaderErrors : MutableMap<LoaderResult, ArrayList<String>>, found : Boolean = false) : Boolean {
         var foundCurrent = found
 
         directory.listFiles().forEach { file ->
             if (file.isDirectory) {
-                foundCurrent = addEntries(extension, romFormat, file, foundCurrent)
+                foundCurrent = addEntries(extension, romFormat, file, loaderErrors, foundCurrent)
             } else {
                 if (extension.equals(file.name?.substringAfterLast("."), ignoreCase = true)) {
-                    val romFd = contentResolver.openFileDescriptor(file.uri, "r")!!
-                    val romFile = RomFile(this, romFormat, romFd)
-
-                    if (romFile.valid()) {
-                        romFile.use {
-                            val entry = romFile.getAppEntry(file.uri)
-
+                    RomFile(this, romFormat, file.uri).let { romFile ->
+                        if (romFile.valid) {
                             val finalFoundCurrent = foundCurrent
                             runOnUiThread {
                                 if (!finalFoundCurrent) adapter.addHeader(romFormat.name)
 
-                                adapter.addItem(AppItem(entry))
+                                adapter.addItem(AppItem(romFile.appEntry))
                             }
 
                             foundCurrent = true
+                        } else {
+                            loaderErrors.getOrPut(romFile.result, { ArrayList() }).add(file.name!!)
                         }
                     }
-
-                    romFd.close()
                 }
             }
         }
@@ -102,6 +103,7 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             }
         }
 
+        if (reloading.getAndSet(true)) return
         thread(start = true) {
             val snackbar = Snackbar.make(coordinatorLayout, getString(R.string.searching_roms), Snackbar.LENGTH_INDEFINITE)
             runOnUiThread {
@@ -114,13 +116,15 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
 
                 val searchLocation = DocumentFile.fromTreeUri(this, Uri.parse(sharedPreferences.getString("search_location", "")))!!
 
-                var foundRoms = addEntries("nro", RomFormat.NRO, searchLocation)
-                foundRoms = foundRoms or addEntries("nso", RomFormat.NSO, searchLocation)
-                foundRoms = foundRoms or addEntries("nca", RomFormat.NCA, searchLocation)
-                foundRoms = foundRoms or addEntries("nsp", RomFormat.NSP, searchLocation)
+                val loaderErrors = HashMap<LoaderResult, ArrayList<String>>()
+                var foundRoms = addEntries("nro", RomFormat.NRO, searchLocation, loaderErrors)
+                foundRoms = foundRoms or addEntries("nso", RomFormat.NSO, searchLocation, loaderErrors)
+                foundRoms = foundRoms or addEntries("nca", RomFormat.NCA, searchLocation, loaderErrors)
+                foundRoms = foundRoms or addEntries("nsp", RomFormat.NSP, searchLocation, loaderErrors)
 
                 runOnUiThread {
                     if (!foundRoms) adapter.addHeader(getString(R.string.no_rom))
+                    if (loaderErrors.isNotEmpty()) LoaderErrorDialog.newInstance(loaderErrors).show(supportFragmentManager, "loadingErrors")
 
                     try {
                         adapter.save(File(applicationContext.filesDir.canonicalPath + "/roms.bin"))
@@ -148,6 +152,8 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
                 snackbar.dismiss()
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
+
+            reloading.set(false)
         }
     }
 
@@ -171,10 +177,18 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
             else -> AppCompatDelegate.MODE_NIGHT_UNSPECIFIED
         })
 
-        refresh_fab.setOnClickListener(this)
-        settings_fab.setOnClickListener(this)
-        open_fab.setOnClickListener(this)
-        log_fab.setOnClickListener(this)
+        refresh_fab.setOnClickListener { refreshAdapter(false) }
+
+        settings_fab.setOnClickListener { startActivityForResult(Intent(this, SettingsActivity::class.java), 3) }
+
+        open_fab.setOnClickListener { startActivity(Intent(this, LogActivity::class.java)) }
+
+        log_fab.setOnClickListener {
+            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = "*/*"
+            }, 2)
+        }
 
         setupAppList()
 
@@ -263,37 +277,16 @@ class MainActivity : AppCompatActivity(), View.OnClickListener {
         return super.onCreateOptionsMenu(menu)
     }
 
-    /**
-     * This handles on-click interaction with [R.id.refresh_fab], [R.id.settings_fab], [R.id.log_fab], [R.id.open_fab]
-     */
-    override fun onClick(view : View) {
-        when (view.id) {
-            R.id.refresh_fab -> refreshAdapter(false)
-
-            R.id.settings_fab -> startActivityForResult(Intent(this, SettingsActivity::class.java), 3)
-
-            R.id.log_fab -> startActivity(Intent(this, LogActivity::class.java))
-
-            R.id.open_fab -> {
-                val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
-                intent.addCategory(Intent.CATEGORY_OPENABLE)
-                intent.type = "*/*"
-
-                startActivityForResult(intent, 2)
-            }
-        }
-    }
-
     private val selectStartGame : (appItem : AppItem) -> Unit = {
         if (sharedPreferences.getBoolean("select_action", false)) {
-            AppDialog(it).show(supportFragmentManager, "game")
+            AppDialog.newInstance(it).show(supportFragmentManager, "game")
         } else {
             startActivity(Intent(this, EmulationActivity::class.java).apply { data = it.uri })
         }
     }
 
     private val selectShowGameDialog : (appItem : AppItem) -> Unit = {
-        AppDialog(it).show(supportFragmentManager, "game")
+        AppDialog.newInstance(it).show(supportFragmentManager, "game")
     }
 
     /**

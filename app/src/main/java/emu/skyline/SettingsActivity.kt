@@ -19,7 +19,6 @@ import kotlinx.android.synthetic.main.settings_activity.*
 import kotlinx.android.synthetic.main.titlebar.*
 
 class SettingsActivity : AppCompatActivity() {
-
     /**
      * This is the instance of [PreferenceFragment] that is shown inside [R.id.settings]
      */

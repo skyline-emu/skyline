@@ -6,7 +6,6 @@
 #include "key_store.h"
 
 namespace skyline::crypto {
-
     KeyStore::KeyStore(const std::string &rootPath) {
         vfs::OsFileSystem root(rootPath);
         if (root.FileExists("title.keys"))

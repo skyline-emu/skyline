@@ -26,7 +26,6 @@ import kotlinx.android.synthetic.main.app_dialog.*
  * This dialog is used to show extra game metadata and provide extra options such as pinning the game to the home screen
  */
 class AppDialog : BottomSheetDialogFragment() {
-
     companion object {
         /**
          * @param item This is used to hold the [AppItem] between instances

@@ -63,7 +63,6 @@ class SettingsActivity : AppCompatActivity() {
      * This fragment is used to display all of the preferences
      */
     class PreferenceFragment : PreferenceFragmentCompat() {
-
         private var requestCodeCounter = 0
 
         /**

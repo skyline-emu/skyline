@@ -27,7 +27,7 @@ namespace skyline::vfs {
         /**
          * @brief Calculates IV based on the offset
          */
-        void UpdateCtr(size_t offset);
+        void UpdateCtr(u64 offset);
 
       public:
         CtrEncryptedBacking(crypto::KeyStore::Key128 &ctr, crypto::KeyStore::Key128 &key, const std::shared_ptr<Backing> &backing, size_t baseOffset);

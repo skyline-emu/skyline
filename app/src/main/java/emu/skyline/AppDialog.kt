@@ -20,6 +20,7 @@ import androidx.core.graphics.drawable.toBitmap
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import emu.skyline.data.AppItem
+import emu.skyline.loader.LoaderResult
 import kotlinx.android.synthetic.main.app_dialog.*
 
 /**
@@ -83,13 +84,11 @@ class AppDialog : BottomSheetDialogFragment() {
 
         game_icon.setImageBitmap(item.icon ?: missingIcon)
         game_title.text = item.title
-        game_subtitle.text = item.subTitle ?: getString(R.string.metadata_missing)
+        game_subtitle.text = item.subTitle ?: item.loaderResultString(requireContext())
 
+        game_play.isEnabled = item.loaderResult == LoaderResult.Success
         game_play.setOnClickListener {
-            val intent = Intent(activity, EmulationActivity::class.java)
-            intent.data = item.uri
-
-            startActivity(intent)
+            startActivity(Intent(activity, EmulationActivity::class.java).apply { data = item.uri })
         }
 
         val shortcutManager = requireActivity().getSystemService(ShortcutManager::class.java)

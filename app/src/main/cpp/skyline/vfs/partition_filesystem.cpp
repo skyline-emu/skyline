@@ -21,6 +21,7 @@ namespace skyline::vfs {
 
         std::vector<char> stringTable(header.stringTableSize + 1);
         backing->Read(stringTable.data(), stringTableOffset, header.stringTableSize);
+        stringTable[header.stringTableSize] = 0;
 
         for (u32 entryOffset{sizeof(FsHeader)}; entryOffset < header.numFiles * entrySize; entryOffset += entrySize) {
             PartitionFileEntry entry;

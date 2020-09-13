@@ -27,44 +27,26 @@ namespace skyline::crypto {
         IndexedKeys128 areaKeyOcean;
         IndexedKeys128 areaKeySystem;
       private:
-        /**
-         * @brief The 256-bit keys used for decryption
-         */
-        enum class Keys256 : u8 {
-            Header
-        };
-
-        /**
-         * @brief The 128-bit keys used for decryption
-         * @note These are indexed because NCA header defines which key generation to use
-         */
-        enum class Keys128 : u8 {
-            TitleKek,
-            KeyAreaKeyApplication,
-            KeyAreaKeyOcean,
-            KeyAreaKeySystem
-        };
-
         std::map<Key128, Key128> titleKeys;
 
-        std::unordered_map<std::string_view, Keys256> key256Names{
-            {"header_key", Keys256::Header}
+        std::unordered_map<std::string_view, std::optional<Key256> &> key256Names{
+            {"header_key", headerKey}
         };
 
-        std::unordered_map<std::string_view, Keys128> indexedKey128Names{
-            {"titlekek_", Keys128::TitleKek},
-            {"key_area_key_application_", Keys128::KeyAreaKeyApplication},
-            {"key_area_key_ocean_", Keys128::KeyAreaKeyOcean},
-            {"key_area_key_system_", Keys128::KeyAreaKeySystem}
+        std::unordered_map<std::string_view, IndexedKeys128 &> indexedKey128Names{
+            {"titlekek_", titleKek},
+            {"key_area_key_application_", areaKeyApplication},
+            {"key_area_key_ocean_", areaKeyOcean},
+            {"key_area_key_system_", areaKeySystem}
         };
 
-        using ReadPairsCallback = void (skyline::crypto::KeyStore::*)(const std::string_view &, const std::string_view &);
+        using ReadPairsCallback = void (skyline::crypto::KeyStore::*)(std::string_view, std::string_view);
 
         void ReadPairs(const std::shared_ptr<vfs::Backing> &backing, ReadPairsCallback callback);
 
-        void PopulateTitleKeys(const std::string_view &keyName, const std::string_view &value);
+        void PopulateTitleKeys(std::string_view keyName, std::string_view value);
 
-        void PopulateKeys(const std::string_view &keyName, const std::string_view &value);
+        void PopulateKeys(std::string_view keyName, std::string_view value);
 
       public:
         inline std::optional<Key128> GetTitleKey(const Key128 &title) {

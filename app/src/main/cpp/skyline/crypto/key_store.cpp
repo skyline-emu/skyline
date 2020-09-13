@@ -34,41 +34,26 @@ namespace skyline::crypto {
         }
     }
 
-    void KeyStore::PopulateTitleKeys(const std::string_view &keyName, const std::string_view &value) {
+    void KeyStore::PopulateTitleKeys(std::string_view keyName, std::string_view value) {
         Key128 key{util::HexStringToArray<16>(keyName)};
         Key128 valueArray{util::HexStringToArray<16>(value)};
         titleKeys.insert({std::move(key), std::move(valueArray)});
     }
 
-    void KeyStore::PopulateKeys(const std::string_view &keyName, const std::string_view &value) {
-        auto it{key256Names.find(keyName)};
-        if (it != key256Names.end()) {
-            switch (it->second) {
-                case Keys256::Header:
-                    headerKey = util::HexStringToArray<32>(value);
-                    return;
+    void KeyStore::PopulateKeys(std::string_view keyName, std::string_view value) {
+        {
+            auto it{key256Names.find(keyName)};
+            if (it != key256Names.end()) {
+                it->second = headerKey = util::HexStringToArray<32>(value);
+                return;
             }
         }
 
-        for (const auto &pair : indexedKey128Names) {
-            const auto &keyPrefix{pair.first};
-            if (keyName.size() == keyPrefix.size() + 2 && keyName.substr(0, keyPrefix.size()) == keyPrefix) {
-                size_t index{std::stoul(std::string(keyName.substr(keyPrefix.size())), nullptr, 16)};
-                Key128 key{util::HexStringToArray<16>(value)};
-                switch (pair.second) {
-                    case Keys128::TitleKek:
-                        titleKek[index] = key;
-                        return;
-                    case Keys128::KeyAreaKeyApplication:
-                        areaKeyApplication[index] = key;
-                        return;
-                    case Keys128::KeyAreaKeyOcean:
-                        areaKeyOcean[index] = key;
-                        return;
-                    case Keys128::KeyAreaKeySystem:
-                        areaKeySystem[index] = key;
-                        return;
-                }
+        if (keyName.size() > 2) {
+            auto it = indexedKey128Names.find(keyName.substr(0, keyName.size() - 2));
+            if (it != indexedKey128Names.end()) {
+                size_t index{std::stoul(std::string(keyName.substr(it->first.size())), nullptr, 16)};
+                it->second[index] = util::HexStringToArray<16>(value);
             }
         }
     }

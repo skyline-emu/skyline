@@ -56,30 +56,24 @@ class MainActivity : AppCompatActivity() {
 
     /**
      * This adds all files in [directory] with [extension] as an entry in [adapter] using [RomFile] to load metadata
-     *
-     * @param loaderErrors Map of [LoaderResult] as key and their corresponding list of files. Only contains files which have a different result than [LoaderResult.Success]
      */
-    private fun addEntries(extension : String, romFormat : RomFormat, directory : DocumentFile, loaderErrors : MutableMap<LoaderResult, ArrayList<String>>, found : Boolean = false) : Boolean {
+    private fun addEntries(extension : String, romFormat : RomFormat, directory : DocumentFile, found : Boolean = false) : Boolean {
         var foundCurrent = found
 
         directory.listFiles().forEach { file ->
             if (file.isDirectory) {
-                foundCurrent = addEntries(extension, romFormat, file, loaderErrors, foundCurrent)
+                foundCurrent = addEntries(extension, romFormat, file, foundCurrent)
             } else {
                 if (extension.equals(file.name?.substringAfterLast("."), ignoreCase = true)) {
                     RomFile(this, romFormat, file.uri).let { romFile ->
-                        if (romFile.valid) {
-                            val finalFoundCurrent = foundCurrent
-                            runOnUiThread {
-                                if (!finalFoundCurrent) adapter.addHeader(romFormat.name)
+                        val finalFoundCurrent = foundCurrent
+                        runOnUiThread {
+                            if (!finalFoundCurrent) adapter.addHeader(romFormat.name)
 
-                                adapter.addItem(AppItem(romFile.appEntry))
-                            }
-
-                            foundCurrent = true
-                        } else {
-                            loaderErrors.getOrPut(romFile.result, { ArrayList() }).add(file.name!!)
+                            adapter.addItem(AppItem(romFile.appEntry))
                         }
+
+                        foundCurrent = true
                     }
                 }
             }
@@ -116,15 +110,13 @@ class MainActivity : AppCompatActivity() {
 
                 val searchLocation = DocumentFile.fromTreeUri(this, Uri.parse(sharedPreferences.getString("search_location", "")))!!
 
-                val loaderErrors = HashMap<LoaderResult, ArrayList<String>>()
-                var foundRoms = addEntries("nro", RomFormat.NRO, searchLocation, loaderErrors)
-                foundRoms = foundRoms or addEntries("nso", RomFormat.NSO, searchLocation, loaderErrors)
-                foundRoms = foundRoms or addEntries("nca", RomFormat.NCA, searchLocation, loaderErrors)
-                foundRoms = foundRoms or addEntries("nsp", RomFormat.NSP, searchLocation, loaderErrors)
+                var foundRoms = addEntries("nro", RomFormat.NRO, searchLocation)
+                foundRoms = foundRoms or addEntries("nso", RomFormat.NSO, searchLocation)
+                foundRoms = foundRoms or addEntries("nca", RomFormat.NCA, searchLocation)
+                foundRoms = foundRoms or addEntries("nsp", RomFormat.NSP, searchLocation)
 
                 runOnUiThread {
                     if (!foundRoms) adapter.addHeader(getString(R.string.no_rom))
-                    if (loaderErrors.isNotEmpty()) LoaderErrorDialog.newInstance(loaderErrors).show(supportFragmentManager, "loadingErrors")
 
                     try {
                         adapter.save(File(applicationContext.filesDir.canonicalPath + "/roms.bin"))
@@ -231,7 +223,7 @@ class MainActivity : AppCompatActivity() {
 
         val layoutType = LayoutType.values()[sharedPreferences.getString("layout_type", "1")!!.toInt()]
 
-        adapter = AppAdapter(layoutType = layoutType, gridSpan = gridSpan, onClick = selectStartGame, onLongClick = selectShowGameDialog)
+        adapter = AppAdapter(layoutType = layoutType, onClick = ::selectStartGame, onLongClick = ::selectShowGameDialog)
         app_list.adapter = adapter
 
         app_list.layoutManager = when (layoutType) {
@@ -277,16 +269,15 @@ class MainActivity : AppCompatActivity() {
         return super.onCreateOptionsMenu(menu)
     }
 
-    private val selectStartGame : (appItem : AppItem) -> Unit = {
-        if (sharedPreferences.getBoolean("select_action", false)) {
-            AppDialog.newInstance(it).show(supportFragmentManager, "game")
-        } else {
-            startActivity(Intent(this, EmulationActivity::class.java).apply { data = it.uri })
-        }
+    private fun selectStartGame(appItem : AppItem) {
+        if (sharedPreferences.getBoolean("select_action", false))
+            AppDialog.newInstance(appItem).show(supportFragmentManager, "game")
+        else if (appItem.loaderResult == LoaderResult.Success)
+            startActivity(Intent(this, EmulationActivity::class.java).apply { data = appItem.uri })
     }
 
-    private val selectShowGameDialog : (appItem : AppItem) -> Unit = {
-        AppDialog.newInstance(it).show(supportFragmentManager, "game")
+    private fun selectShowGameDialog(appItem : AppItem) {
+        AppDialog.newInstance(appItem).show(supportFragmentManager, "game")
     }
 
     /**
@@ -356,8 +347,8 @@ class MainActivity : AppCompatActivity() {
 
         val gridCardMagin = resources.getDimensionPixelSize(R.dimen.app_card_margin_half)
         when (layoutType) {
-            LayoutType.List -> app_list.setPadding(0, 0, 0, 0)
-            LayoutType.Grid, LayoutType.GridCompact -> app_list.setPadding(gridCardMagin, 0, gridCardMagin, 0)
+            LayoutType.List -> app_list.post { app_list.setPadding(0, 0, 0, fab_parent.height) }
+            LayoutType.Grid, LayoutType.GridCompact -> app_list.post { app_list.setPadding(gridCardMagin, 0, gridCardMagin, fab_parent.height) }
         }
     }
 }

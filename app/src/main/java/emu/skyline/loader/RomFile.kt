@@ -60,7 +60,7 @@ enum class LoaderResult(val value : Int) {
 /**
  * This class is used to hold an application's metadata in a serializable way
  */
-data class AppEntry(val name : String, val author : String?, val icon : Bitmap?, val format : RomFormat, val uri : Uri, val loaderResult : LoaderResult) : Serializable {
+class AppEntry(val name : String, val author : String?, val icon : Bitmap?, val format : RomFormat, val uri : Uri, val loaderResult : LoaderResult) : Serializable {
     constructor(context : Context, format : RomFormat, uri : Uri, loaderResult : LoaderResult) : this(context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
         val nameIndex : Int = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
         cursor.moveToFirst()

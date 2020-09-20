@@ -14,9 +14,9 @@ namespace skyline::gpu::vmm {
         chunks.push_back(baseChunk);
     }
 
-    std::optional<ChunkDescriptor> MemoryManager::FindChunk(u64 size, ChunkState state) {
+    std::optional<ChunkDescriptor> MemoryManager::FindChunk(ChunkState state, u64 size, u64 alignment) {
         auto chunk{std::find_if(chunks.begin(), chunks.end(), [size, state](const ChunkDescriptor &chunk) -> bool {
-            return chunk.size > size && chunk.state == state;
+            return (alignment ? util::IsAligned(chunk.address, alignment) : true) && chunk.size > size && chunk.state == state;
         })};
 
         if (chunk != chunks.end())
@@ -85,7 +85,7 @@ namespace skyline::gpu::vmm {
 
     u64 MemoryManager::ReserveSpace(u64 size) {
         size = util::AlignUp(size, constant::GpuPageSize);
-        auto newChunk{FindChunk(size, ChunkState::Unmapped)};
+        auto newChunk{FindChunk(ChunkState::Unmapped, size, alignment)};
         if (!newChunk)
             return 0;
 
@@ -107,7 +107,7 @@ namespace skyline::gpu::vmm {
 
     u64 MemoryManager::MapAllocate(u64 address, u64 size) {
         size = util::AlignUp(size, constant::GpuPageSize);
-        auto mappedChunk{FindChunk(size, ChunkState::Unmapped)};
+        auto mappedChunk{FindChunk(ChunkState::Unmapped, size)};
         if (!mappedChunk)
             return 0;
 

@@ -30,7 +30,7 @@ namespace skyline::service::nvdrv::device {
         if (region.flags & 1)
             region.offset = state.gpu->memoryManager.ReserveFixed(region.offset, size);
         else
-            region.offset = state.gpu->memoryManager.ReserveSpace(size);
+            region.offset = state.gpu->memoryManager.ReserveSpace(size, region.align);
 
         if (region.offset == 0) {
             state.logger->Warn("Failed to allocate GPU address space region!");

@@ -15,7 +15,7 @@ namespace skyline::gpu::vmm {
     }
 
     std::optional<ChunkDescriptor> MemoryManager::FindChunk(ChunkState state, u64 size, u64 alignment) {
-        auto chunk{std::find_if(chunks.begin(), chunks.end(), [size, state](const ChunkDescriptor &chunk) -> bool {
+        auto chunk{std::find_if(chunks.begin(), chunks.end(), [state, size, alignment](const ChunkDescriptor &chunk) -> bool {
             return (alignment ? util::IsAligned(chunk.address, alignment) : true) && chunk.size > size && chunk.state == state;
         })};
 
@@ -83,7 +83,7 @@ namespace skyline::gpu::vmm {
         throw exception("Failed to insert chunk into GPU address space!");
     }
 
-    u64 MemoryManager::ReserveSpace(u64 size) {
+    u64 MemoryManager::ReserveSpace(u64 size, u64 alignment) {
         size = util::AlignUp(size, constant::GpuPageSize);
         auto newChunk{FindChunk(ChunkState::Unmapped, size, alignment)};
         if (!newChunk)
@@ -98,7 +98,7 @@ namespace skyline::gpu::vmm {
 
     u64 MemoryManager::ReserveFixed(u64 address, u64 size) {
         if (!util::IsAligned(address, constant::GpuPageSize))
-            return false;
+            return 0;
 
         size = util::AlignUp(size, constant::GpuPageSize);
 
@@ -121,26 +121,22 @@ namespace skyline::gpu::vmm {
 
     u64 MemoryManager::MapFixed(u64 address, u64 cpuAddress, u64 size) {
         if (!util::IsAligned(address, constant::GpuPageSize))
-            return false;
+            return 0;
 
         size = util::AlignUp(size, constant::GpuPageSize);
 
         return InsertChunk(ChunkDescriptor(address, size, cpuAddress, ChunkState::Mapped));
     }
 
-    bool MemoryManager::Unmap(u64 address) {
+    bool MemoryManager::Unmap(u64 address, u64 size) {
         if (!util::IsAligned(address, constant::GpuPageSize))
             return false;
 
-        auto chunk{std::find_if(chunks.begin(), chunks.end(), [address](const ChunkDescriptor &chunk) -> bool {
-            return chunk.address == address;
-        })};
-
-        if (chunk == chunks.end())
+        try {
+            InsertChunk(ChunkDescriptor(address, size, 0, ChunkState::Unmapped));
+        } catch (const std::exception &e) {
             return false;
-
-        chunk->state = ChunkState::Reserved;
-        chunk->cpuAddress = 0;
+        }
 
         return true;
     }

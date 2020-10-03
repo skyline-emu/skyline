@@ -118,6 +118,10 @@ namespace skyline::service::nvdrv::device {
         return NvStatus::Success;
     }
 
+    NvStatus NvHostChannel::SetTimeslice(IoctlType type, std::span<u8> buffer, std::span<u8> inlineBuffer) {
+        return NvStatus::Success;
+    }
+
     NvStatus NvHostChannel::SetUserData(IoctlType type, span<u8> buffer, span<u8> inlineBuffer) {
         return NvStatus::Success;
     }

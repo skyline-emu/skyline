@@ -77,6 +77,12 @@ namespace skyline::service::nvdrv::device {
         NvStatus AllocGpfifoEx2(IoctlType type, span<u8> buffer, span<u8> inlineBuffer);
 
         /**
+         * @brief Sets the timeslice of the channel
+         * @url https://switchbrew.org/wiki/NV_services#NVGPU_IOCTL_CHANNEL_SET_TIMESLICE)
+         */
+        NvStatus SetTimeslice(IoctlType type, std::span<u8> buffer, std::span<u8> inlineBuffer);
+
+        /**
          * @brief Sets the user specific data
          * @url https://switchbrew.org/wiki/NV_services#NVGPU_IOCTL_CHANNEL_SET_USER_DATA
          */

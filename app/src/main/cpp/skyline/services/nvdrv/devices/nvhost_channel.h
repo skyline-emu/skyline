@@ -93,6 +93,7 @@ namespace skyline::service::nvdrv::device {
             NVFUNC(0x480C, NvHostChannel, SetErrorNotifier),
             NVFUNC(0x480D, NvHostChannel, SetPriority),
             NVFUNC(0x481A, NvHostChannel, AllocGpfifoEx2),
+            NVFUNC(0x481B, NvHostChannel, SubmitGpfifo), // Our SubmitGpfifo implementation also handles SubmitGpfifoEx
             NVFUNC(0x4714, NvHostChannel, SetUserData)
         )
     };

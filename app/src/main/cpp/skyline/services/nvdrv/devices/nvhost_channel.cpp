@@ -54,7 +54,12 @@ namespace skyline::service::nvdrv::device {
                 throw exception("Waiting on a fence through SubmitGpfifo is unimplemented");
         }
 
-        state.gpu->gpfifo.Push(span(state.process->GetPointer<gpu::gpfifo::GpEntry>(data.address), data.numEntries));
+        state.gpu->gpfifo.Push([&]() {
+            if (type == IoctlType::Ioctl2)
+                return inlineBuffer.cast<gpu::gpfifo::GpEntry>();
+            else
+                return span(state.process->GetPointer<gpu::gpfifo::GpEntry>(data.address), data.numEntries);
+        }());
 
         data.fence.id = channelFence.id;
 

@@ -11,6 +11,9 @@ namespace skyline::vfs {
      */
     class Directory {
       public:
+        /*
+         * @note MUST match HOS
+         */
         enum class EntryType : u32 {
             Directory = 0x0,
             File = 0x1,
@@ -19,17 +22,19 @@ namespace skyline::vfs {
         struct Entry {
             std::string name;
             EntryType type;
+            size_t size; //!< 0 if a directory
         };
 
         /**
          * @brief A descriptor for what will be returned when reading a directories contents
+         * @note MUST match HOS
          */
         union ListMode {
             struct {
                 bool directory : 1; //!< The directory listing will contain subdirectories
                 bool file : 1; //!< The directory listing will contain files
             };
-            u32 raw;
+            u32 raw{};
         };
         static_assert(sizeof(ListMode) == 0x4);
 

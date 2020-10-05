@@ -90,8 +90,7 @@ namespace skyline::service::nvdrv::device {
                     return NvStatus::BadParameter;
                 }
 
-                // Upper bound gives us the region after the one we want
-                region--;
+                region--; // Upper bound gives us the region after the one we want
 
                 if (region->second.size < data.mappingSize) {
                     state.logger->Warn("Cannot remap an partially mapped GPU address space region: 0x{:X}", data.offset);

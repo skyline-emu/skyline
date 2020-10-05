@@ -77,7 +77,7 @@ namespace skyline::service::nvdrv::device {
         if (data.gpuCharacteristicsBufSize < sizeof(GpuCharacteristics))
             return NvStatus::InvalidSize;
 
-        // The ioctl3 version of GetCharacteristics additionally outputs to the inline output buffer
+        // The IOCTL3 version of GetCharacteristics additionally outputs to the inline output buffer
         if (type == IoctlType::Ioctl3) {
             auto &inlineCharacteristics{inlineBuffer.as<GpuCharacteristics>()};
             data.gpuCharacteristics = inlineCharacteristics = GpuCharacteristics{};

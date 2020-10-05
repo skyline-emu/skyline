@@ -11,9 +11,6 @@ namespace skyline::vfs {
      */
     class Directory {
       public:
-        /*
-         * @note MUST match HOS
-         */
         enum class EntryType : u32 {
             Directory = 0x0,
             File = 0x1,
@@ -27,7 +24,6 @@ namespace skyline::vfs {
 
         /**
          * @brief A descriptor for what will be returned when reading a directories contents
-         * @note MUST match HOS
          */
         union ListMode {
             struct {

@@ -5,26 +5,32 @@
 
 package emu.skyline.preference
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.util.AttributeSet
+import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.preference.Preference
 import androidx.preference.Preference.SummaryProvider
 import emu.skyline.R
+import emu.skyline.di.getInputManager
 import emu.skyline.input.ControllerActivity
-import emu.skyline.input.InputManager
 
 /**
  * This preference is used to launch [ControllerActivity] using a preference
  */
-class ControllerPreference @JvmOverloads constructor(context : Context, attrs : AttributeSet? = null, defStyleAttr : Int = R.attr.preferenceStyle) : Preference(context, attrs, defStyleAttr), ActivityResultDelegate {
+class ControllerPreference @JvmOverloads constructor(context : Context, attrs : AttributeSet? = null, defStyleAttr : Int = R.attr.preferenceStyle) : Preference(context, attrs, defStyleAttr) {
+    private val controllerCallback = (context as ComponentActivity).registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        inputManager.syncObjects()
+        notifyChanged()
+    }
+
     /**
      * The index of the controller this preference manages
      */
     private var index = -1
 
-    override var requestCode = 0
+    private val inputManager = context.getInputManager()
 
     init {
         for (i in 0 until attrs!!.attributeCount) {
@@ -43,20 +49,11 @@ class ControllerPreference @JvmOverloads constructor(context : Context, attrs : 
             key = "controller_$index"
 
         title = "${context.getString(R.string.config_controller)} #${index + 1}"
-        summaryProvider = SummaryProvider<ControllerPreference> { InputManager.controllers[index]!!.type.stringRes.let { context.getString(it) } }
+        summaryProvider = SummaryProvider<ControllerPreference> { inputManager.controllers[index]!!.type.stringRes.let { context.getString(it) } }
     }
 
     /**
      * This launches [ControllerActivity] on click to configure the controller
      */
-    override fun onClick() {
-        (context as Activity).startActivityForResult(Intent(context, ControllerActivity::class.java).apply { putExtra("index", index) }, requestCode)
-    }
-
-    override fun onActivityResult(requestCode : Int, resultCode : Int, data : Intent?) {
-        if (this.requestCode == requestCode) {
-            InputManager.syncObjects()
-            notifyChanged()
-        }
-    }
+    override fun onClick() = controllerCallback.launch(Intent(context, ControllerActivity::class.java))
 }

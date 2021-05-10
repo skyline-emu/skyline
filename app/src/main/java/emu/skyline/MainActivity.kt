@@ -5,302 +5,268 @@
 
 package emu.skyline
 
-import android.animation.ObjectAnimator
 import android.content.Intent
-import android.content.pm.ActivityInfo
+import android.graphics.Color
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.appcompat.widget.SearchView
-import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.use
 import androidx.core.graphics.drawable.toBitmap
-import androidx.documentfile.provider.DocumentFile
+import androidx.core.view.isInvisible
+import androidx.core.view.isVisible
+import androidx.core.view.size
 import androidx.preference.PreferenceManager
-import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
-import emu.skyline.adapter.AppViewItem
-import emu.skyline.adapter.GenericAdapter
-import emu.skyline.adapter.HeaderViewItem
-import emu.skyline.adapter.LayoutType
+import dagger.hilt.android.AndroidEntryPoint
+import emu.skyline.adapter.*
 import emu.skyline.data.AppItem
 import emu.skyline.data.DataItem
 import emu.skyline.data.HeaderItem
+import emu.skyline.databinding.MainActivityBinding
+import emu.skyline.loader.AppEntry
 import emu.skyline.loader.LoaderResult
-import emu.skyline.loader.RomFile
 import emu.skyline.loader.RomFormat
 import emu.skyline.utils.Settings
-import emu.skyline.utils.loadSerializedList
-import emu.skyline.utils.serialize
-import kotlinx.android.synthetic.main.main_activity.*
-import kotlinx.android.synthetic.main.titlebar.*
-import java.io.File
-import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.concurrent.thread
+import javax.inject.Inject
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
+@AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     companion object {
-        private val TAG = MainActivity::class.java.simpleName
+        private val formatOrder = listOf(RomFormat.NSP, RomFormat.XCI, RomFormat.NRO, RomFormat.NSO, RomFormat.NCA)
     }
 
-    private val settings by lazy { Settings(this) }
+    private val binding by lazy { MainActivityBinding.inflate(layoutInflater) }
 
-    /**
-     * The adapter used for adding elements to [app_list]
-     */
+    @Inject
+    lateinit var settings : Settings
+
     private val adapter = GenericAdapter()
-
-    private var reloading = AtomicBoolean()
 
     private val layoutType get() = LayoutType.values()[settings.layoutType.toInt()]
 
     private val missingIcon by lazy { ContextCompat.getDrawable(this, R.drawable.default_icon)!!.toBitmap(256, 256) }
 
+    private val viewModel by viewModels<MainViewModel>()
+
+    private var formatFilter : RomFormat? = null
+    private var appEntries : Map<RomFormat, List<AppEntry>>? = null
+
+    private var refreshIconVisible = false
+        set(visible) {
+            field = visible
+            binding.refreshIcon.apply {
+                if (visible != isVisible) {
+                    binding.refreshIcon.alpha = if (visible) 0f else 1f
+                    animate().alpha(if (visible) 1f else 0f).withStartAction { isVisible = true }.withEndAction { isInvisible = !visible }.apply { duration = 500 }.start()
+                }
+            }
+        }
+
+    private val documentPicker = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) {
+        it?.let { uri ->
+            contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            settings.searchLocation = uri.toString()
+
+            loadRoms(false)
+        }
+    }
+
+    private val settingsCallback = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        if (settings.refreshRequired) loadRoms(false)
+    }
+
     private fun AppItem.toViewItem() = AppViewItem(layoutType, this, missingIcon, ::selectStartGame, ::selectShowGameDialog)
 
-    /**
-     * This adds all files in [directory] with [extension] as an entry in [adapter] using [RomFile] to load metadata
-     */
-    private fun addEntries(extension : String, romFormat : RomFormat, directory : DocumentFile, romElements : ArrayList<DataItem>, found : Boolean = false) : Boolean {
-        var foundCurrent = found
-
-        directory.listFiles().forEach { file ->
-            if (file.isDirectory) {
-                foundCurrent = addEntries(extension, romFormat, file, romElements, foundCurrent)
-            } else {
-                if (extension.equals(file.name?.substringAfterLast("."), ignoreCase = true)) {
-                    RomFile(this, romFormat, file.uri).let { romFile ->
-                        val finalFoundCurrent = foundCurrent
-                        runOnUiThread {
-                            if (!finalFoundCurrent) {
-                                romElements.add(HeaderItem(romFormat.name))
-                                adapter.addItem(HeaderViewItem(romFormat.name))
-                            }
-
-                            romElements.add(AppItem(romFile.appEntry).also {
-                                adapter.addItem(it.toViewItem())
-                            })
-                        }
-
-                        foundCurrent = true
-                    }
-                }
-            }
-        }
-
-        return foundCurrent
-    }
-
-    /**
-     * This refreshes the contents of the adapter by either trying to load cached adapter data or searches for them to recreate a list
-     *
-     * @param loadFromFile If this is false then trying to load cached adapter data is skipped entirely
-     */
-    private fun refreshAdapter(loadFromFile : Boolean) {
-        val romsFile = File(applicationContext.filesDir.canonicalPath + "/roms.bin")
-
-        if (loadFromFile) {
-            try {
-                loadSerializedList<DataItem>(romsFile).forEach {
-                    if (it is HeaderItem)
-                        adapter.addItem(HeaderViewItem(it.title))
-                    else if (it is AppItem)
-                        adapter.addItem(it.toViewItem())
-                }
-                return
-            } catch (e : Exception) {
-                Log.w(TAG, "Ran into exception while loading: ${e.message}")
-            }
-        }
-
-        if (reloading.getAndSet(true)) return
-        thread(start = true) {
-            val snackbar = Snackbar.make(coordinatorLayout, getString(R.string.searching_roms), Snackbar.LENGTH_INDEFINITE)
-            runOnUiThread {
-                snackbar.show()
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LOCKED
-            }
-
-            try {
-                runOnUiThread { adapter.removeAllItems() }
-
-                val searchLocation = DocumentFile.fromTreeUri(this, Uri.parse(settings.searchLocation))!!
-
-                val romElements = ArrayList<DataItem>()
-                addEntries("nro", RomFormat.NRO, searchLocation, romElements)
-                addEntries("nso", RomFormat.NSO, searchLocation, romElements)
-                addEntries("nca", RomFormat.NCA, searchLocation, romElements)
-                addEntries("xci", RomFormat.XCI, searchLocation, romElements)
-                addEntries("nsp", RomFormat.NSP, searchLocation, romElements)
-
-                runOnUiThread {
-                    if (romElements.isEmpty()) {
-                        romElements.add(HeaderItem(getString(R.string.no_rom)))
-                        adapter.addItem(HeaderViewItem(getString(R.string.no_rom)))
-                    }
-
-                    try {
-                        romElements.serialize(romsFile)
-                    } catch (e : IOException) {
-                        Log.w(TAG, "Ran into exception while saving: ${e.message}")
-                    }
-                }
-
-                settings.refreshRequired = false
-            } catch (e : IllegalArgumentException) {
-                runOnUiThread {
-                    settings.searchLocation = ""
-
-                    val intent = intent
-                    finish()
-                    startActivity(intent)
-                }
-            } catch (e : Exception) {
-                runOnUiThread {
-                    Snackbar.make(findViewById(android.R.id.content), getString(R.string.error) + ": ${e.localizedMessage}", Snackbar.LENGTH_SHORT).show()
-                }
-            }
-
-            runOnUiThread {
-                snackbar.dismiss()
-                requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            }
-
-            reloading.set(false)
-        }
-    }
-
-    /**
-     * This initializes [toolbar], [open_fab], [log_fab] and [app_list]
-     */
     override fun onCreate(savedInstanceState : Bundle?) {
+        // Need to create new instance of settings, dependency injection happens
+        AppCompatDelegate.setDefaultNightMode(
+            when ((Settings(this).appTheme.toInt())) {
+                0 -> AppCompatDelegate.MODE_NIGHT_NO
+                1 -> AppCompatDelegate.MODE_NIGHT_YES
+                2 -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                else -> AppCompatDelegate.MODE_NIGHT_UNSPECIFIED
+            }
+        )
         super.onCreate(savedInstanceState)
 
-        setContentView(R.layout.main_activity)
-
-        setSupportActionBar(toolbar)
+        setContentView(binding.root)
 
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false)
 
-        AppCompatDelegate.setDefaultNightMode(when ((settings.appTheme.toInt())) {
-            0 -> AppCompatDelegate.MODE_NIGHT_NO
-            1 -> AppCompatDelegate.MODE_NIGHT_YES
-            2 -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-            else -> AppCompatDelegate.MODE_NIGHT_UNSPECIFIED
-        })
+        adapter.apply {
+            setHeaderItems(listOf(HeaderRomFilterItem(formatOrder, if (settings.filter == 0) null else formatOrder[settings.filter - 1]) { romFormat ->
+                settings.filter = romFormat?.let { formatOrder.indexOf(romFormat) + 1 } ?: 0
+                formatFilter = romFormat
+                populateAdapter()
+            }))
 
-        refresh_fab.setOnClickListener { refreshAdapter(false) }
-
-        settings_fab.setOnClickListener { startActivityForResult(Intent(this, SettingsActivity::class.java), 3) }
-
-        open_fab.setOnClickListener {
-            startActivityForResult(Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-                addCategory(Intent.CATEGORY_OPENABLE)
-                type = "*/*"
-            }, 2)
+            setOnFilterPublishedListener {
+                binding.appList.post { binding.appList.smoothScrollToPosition(0) }
+            }
         }
-
-        log_fab.setOnClickListener { startActivity(Intent(this, LogActivity::class.java)) }
 
         setupAppList()
 
-        app_list.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            var y = 0
+        binding.swipeRefreshLayout.apply {
+            setProgressBackgroundColorSchemeColor(obtainStyledAttributes(intArrayOf(R.attr.colorPrimary)).use { it.getColor(0, Color.BLACK) })
+            setColorSchemeColors(obtainStyledAttributes(intArrayOf(R.attr.colorAccent)).use { it.getColor(0, Color.BLACK) })
+            post { setDistanceToTriggerSync((binding.swipeRefreshLayout.height / 2.5f).roundToInt()) }
+            setOnRefreshListener { loadRoms(false) }
+        }
 
-            override fun onScrolled(recyclerView : RecyclerView, dx : Int, dy : Int) {
-                y += dy
+        viewModel.stateData.observe(this, ::handleState)
+        loadRoms(!settings.refreshRequired)
 
-                if (!app_list.isInTouchMode)
-                    toolbar_layout.setExpanded(y == 0)
-
-                super.onScrolled(recyclerView, dx, dy)
+        binding.searchBar.apply {
+            binding.logIcon.setOnClickListener { startActivity(Intent(context, LogActivity::class.java)) }
+            binding.settingsIcon.setOnClickListener { settingsCallback.launch(Intent(context, SettingsActivity::class.java)) }
+            binding.refreshIcon.setOnClickListener { loadRoms(false) }
+            addTextChangedListener(afterTextChanged = { editable ->
+                editable?.let { text -> adapter.filter.filter(text.toString()) }
+            })
+            if (!viewModel.searchBarAnimated) {
+                viewModel.searchBarAnimated = true
+                post { startTitleAnimation() }
             }
-        })
+        }
+        window.decorView.findViewById<View>(android.R.id.content).viewTreeObserver.addOnTouchModeChangeListener { isInTouchMode ->
+            refreshIconVisible = !isInTouchMode
+        }
+    }
 
-        val controllerFabX = controller_fabs.translationX
-        window.decorView.findViewById<View>(android.R.id.content).viewTreeObserver.addOnTouchModeChangeListener {
-            if (!it) {
-                toolbar_layout.setExpanded(false)
+    private inner class GridSpacingItemDecoration : RecyclerView.ItemDecoration() {
+        private val padding = resources.getDimensionPixelSize(R.dimen.grid_padding)
 
-                controller_fabs.visibility = View.VISIBLE
-                ObjectAnimator.ofFloat(controller_fabs, "translationX", 0f).apply {
-                    duration = 250
-                    start()
+        override fun getItemOffsets(outRect : Rect, view : View, parent : RecyclerView, state : RecyclerView.State) {
+            super.getItemOffsets(outRect, view, parent, state)
+
+            val gridLayoutManager = parent.layoutManager as GridLayoutManager
+            val layoutParams = view.layoutParams as GridLayoutManager.LayoutParams
+            when (layoutParams.spanIndex) {
+                0 -> outRect.left = padding
+
+                gridLayoutManager.spanCount - 1 -> outRect.right = padding
+
+                else -> {
+                    outRect.left = padding / 2
+                    outRect.right = padding / 2
                 }
-            } else {
-                ObjectAnimator.ofFloat(controller_fabs, "translationX", controllerFabX).apply {
-                    duration = 250
-                    start()
-                }.doOnEnd { controller_fabs.visibility = View.GONE }
+            }
+
+            if (layoutParams.spanSize == gridLayoutManager.spanCount) {
+                outRect.left = 0
+                outRect.right = 0
             }
         }
     }
 
     private fun setAppListDecoration() {
-        when (layoutType) {
-            LayoutType.List -> app_list.addItemDecoration(DividerItemDecoration(this, RecyclerView.VERTICAL))
+        binding.appList.apply {
+            while (itemDecorationCount > 0) removeItemDecorationAt(0)
+            when (layoutType) {
+                LayoutType.List -> Unit
 
-            LayoutType.Grid, LayoutType.GridCompact -> if (app_list.itemDecorationCount > 0) app_list.removeItemDecorationAt(0)
+                LayoutType.Grid, LayoutType.GridCompact -> addItemDecoration(GridSpacingItemDecoration())
+            }
+        }
+    }
+
+    /**
+     * This layout manager handles situations where [onFocusSearchFailed] gets called, when possible we always want to focus on the item with the same span index
+     */
+    private inner class CustomLayoutManager(gridSpan : Int) : GridLayoutManager(this, gridSpan) {
+        init {
+            spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                override fun getSpanSize(position : Int) = if (layoutType == LayoutType.List || adapter.currentItems[position].fullSpan) gridSpan else 1
+            }
+        }
+
+        override fun onFocusSearchFailed(focused : View, focusDirection : Int, recycler : RecyclerView.Recycler, state : RecyclerView.State) : View? {
+            val nextFocus = super.onFocusSearchFailed(focused, focusDirection, recycler, state)
+            when (focusDirection) {
+                View.FOCUS_DOWN -> {
+                    findContainingItemView(focused)?.let { focusedChild ->
+                        val current = binding.appList.indexOfChild(focusedChild)
+                        val currentSpanIndex = (focusedChild.layoutParams as LayoutParams).spanIndex
+                        for (i in current + 1 until binding.appList.size) {
+                            val candidate = getChildAt(i)!!
+                            // Return candidate when span index matches
+                            if (currentSpanIndex == (candidate.layoutParams as LayoutParams).spanIndex) return candidate
+                        }
+                        nextFocus?.let { if ((it.layoutParams as LayoutParams).spanIndex == currentSpanIndex) return nextFocus }
+
+                        binding.appBarLayout.setExpanded(false) // End of list, hide app bar, so bottom row is fully visible
+                        binding.appList.smoothScrollToPosition(adapter.itemCount)
+                    }
+                }
+
+                View.FOCUS_UP -> {
+                    if (nextFocus?.isFocusable != true) {
+                        binding.searchBar.requestFocus()
+                        binding.appBarLayout.setExpanded(true)
+                        binding.appList.smoothScrollToPosition(0)
+                        return null
+                    }
+                }
+            }
+            return nextFocus
         }
     }
 
     private fun setupAppList() {
-        app_list.adapter = adapter
+        binding.appList.adapter = adapter
 
         val itemWidth = 225
         val metrics = resources.displayMetrics
         val gridSpan = ceil((metrics.widthPixels / metrics.density) / itemWidth).toInt()
 
-        app_list.layoutManager = GridLayoutManager(this, gridSpan).apply {
-            spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
-                override fun getSpanSize(position : Int) = if (layoutType == LayoutType.List || adapter.currentItems[position] is HeaderViewItem) gridSpan else 1
-            }
-        }
+        binding.appList.layoutManager = CustomLayoutManager(gridSpan)
         setAppListDecoration()
 
-        if (settings.searchLocation.isEmpty()) {
-            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
-            intent.flags = Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or Intent.FLAG_GRANT_PREFIX_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION
+        if (settings.searchLocation.isEmpty()) documentPicker.launch(null)
+    }
 
-            startActivityForResult(intent, 1)
-        } else {
-            refreshAdapter(!settings.refreshRequired)
+    private fun getDataItems() = mutableListOf<DataItem>().apply {
+        appEntries?.let { entries ->
+            val formats = formatFilter?.let { listOf(it) } ?: formatOrder
+            for (format in formats) {
+                entries[format]?.let {
+                    add(HeaderItem(format.name))
+                    it.forEach { entry -> add(AppItem(entry)) }
+                }
+            }
         }
     }
 
-    /**
-     * This inflates the layout for the menu [R.menu.toolbar_main] and sets up searching the logs
-     */
-    override fun onCreateOptionsMenu(menu : Menu) : Boolean {
-        menuInflater.inflate(R.menu.toolbar_main, menu)
+    private fun handleState(state : MainState) = when (state) {
+        MainState.Loading -> {
+            binding.refreshIcon.apply { animate().rotation(rotation - 180f) }
+            binding.swipeRefreshLayout.isRefreshing = true
+        }
 
-        val searchView = menu.findItem(R.id.action_search_main).actionView as SearchView
+        is MainState.Loaded -> {
+            binding.swipeRefreshLayout.isRefreshing = false
 
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            override fun onQueryTextSubmit(query : String) : Boolean {
-                searchView.clearFocus()
-                return false
-            }
+            appEntries = state.items
+            populateAdapter()
+        }
 
-            override fun onQueryTextChange(newText : String) : Boolean {
-                adapter.filter.filter(newText)
-                return true
-            }
-        })
-
-        return super.onCreateOptionsMenu(menu)
+        is MainState.Error -> Snackbar.make(findViewById(android.R.id.content), getString(R.string.error) + ": ${state.ex.localizedMessage}", Snackbar.LENGTH_SHORT).show()
     }
 
     private fun selectStartGame(appItem : AppItem) {
+        if (binding.swipeRefreshLayout.isRefreshing) return
+
         if (settings.selectAction)
             AppDialog.newInstance(appItem).show(supportFragmentManager, "game")
         else if (appItem.loaderResult == LoaderResult.Success)
@@ -308,63 +274,25 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun selectShowGameDialog(appItem : AppItem) {
+        if (binding.swipeRefreshLayout.isRefreshing) return
+
         AppDialog.newInstance(appItem).show(supportFragmentManager, "game")
     }
 
-    /**
-     * This handles menu interaction for [R.id.action_settings] and [R.id.action_refresh]
-     */
-    override fun onOptionsItemSelected(item : MenuItem) : Boolean {
-        return when (item.itemId) {
-            R.id.action_settings -> {
-                startActivityForResult(Intent(this, SettingsActivity::class.java), 3)
-                true
-            }
-
-            R.id.action_refresh -> {
-                refreshAdapter(false)
-                true
-            }
-
-            else -> super.onOptionsItemSelected(item)
-        }
+    private fun loadRoms(loadFromFile : Boolean) {
+        viewModel.loadRoms(loadFromFile, Uri.parse(settings.searchLocation))
+        settings.refreshRequired = false
     }
 
-    /**
-     * This handles receiving activity result from [Intent.ACTION_OPEN_DOCUMENT_TREE], [Intent.ACTION_OPEN_DOCUMENT] and [SettingsActivity]
-     */
-    override fun onActivityResult(requestCode : Int, resultCode : Int, intent : Intent?) {
-        super.onActivityResult(requestCode, resultCode, intent)
-
-        if (resultCode == RESULT_OK) {
-            when (requestCode) {
-                1 -> {
-                    val uri = intent!!.data!!
-                    contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    settings.searchLocation = uri.toString()
-
-                    refreshAdapter(!settings.refreshRequired)
-                }
-
-                2 -> {
-                    try {
-                        val intentGame = Intent(this, EmulationActivity::class.java)
-                        intentGame.data = intent!!.data!!
-
-                        if (resultCode != 0)
-                            startActivityForResult(intentGame, resultCode)
-                        else
-                            startActivity(intentGame)
-                    } catch (e : Exception) {
-                        Snackbar.make(findViewById(android.R.id.content), getString(R.string.error) + ": ${e.localizedMessage}", Snackbar.LENGTH_SHORT).show()
-                    }
-                }
-
-                3 -> {
-                    if (settings.refreshRequired) refreshAdapter(false)
-                }
+    private fun populateAdapter() {
+        val items = getDataItems()
+        adapter.setItems(items.map {
+            when (it) {
+                is HeaderItem -> HeaderViewItem(it.title)
+                is AppItem -> it.toViewItem()
             }
-        }
+        })
+        if (items.isEmpty()) adapter.setItems(listOf(HeaderViewItem(getString(R.string.no_rom))))
     }
 
     override fun onResume() {
@@ -381,14 +309,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (layoutTypeChanged) {
-            adapter.notifyAllItemsChanged()
             setAppListDecoration()
+            adapter.notifyItemRangeChanged(0, adapter.currentItems.size)
         }
+    }
 
-        val gridCardMagin = resources.getDimensionPixelSize(R.dimen.app_card_margin_half)
-        when (layoutType) {
-            LayoutType.List -> app_list.post { app_list.setPadding(0, 0, 0, fab_parent.height) }
-            LayoutType.Grid, LayoutType.GridCompact -> app_list.post { app_list.setPadding(gridCardMagin, 0, gridCardMagin, fab_parent.height) }
+    override fun onBackPressed() {
+        binding.searchBar.apply {
+            if (hasFocus() && text.isNotEmpty()) {
+                text = ""
+                clearFocus()
+            } else {
+                super.onBackPressed()
+            }
         }
     }
 }

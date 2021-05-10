@@ -8,49 +8,66 @@ package emu.skyline.adapter
 import android.view.ViewGroup
 import android.widget.Filter
 import android.widget.Filterable
+import androidx.recyclerview.widget.AsyncListDiffer
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import info.debatty.java.stringsimilarity.Cosine
 import info.debatty.java.stringsimilarity.JaroWinkler
 import java.util.*
 
+typealias OnFilterPublishedListener = () -> Unit
+
 /**
- * Can handle any view types with [GenericViewHolderBinder] implemented, [GenericViewHolderBinder] are differentiated by the return value of [GenericViewHolderBinder.getLayoutFactory]
+ * Can handle any view types with [GenericListItem] implemented, [GenericListItem] are differentiated by the return value of [GenericListItem.getViewBindingFactory]
  */
-class GenericAdapter : RecyclerView.Adapter<GenericViewHolder>(), Filterable {
+class GenericAdapter : RecyclerView.Adapter<GenericViewHolder<ViewBinding>>(), Filterable {
+    companion object {
+        private val DIFFER = object : DiffUtil.ItemCallback<GenericListItem<ViewBinding>>() {
+            override fun areItemsTheSame(oldItem : GenericListItem<ViewBinding>, newItem : GenericListItem<ViewBinding>) = oldItem.areItemsTheSame(newItem)
+
+            override fun areContentsTheSame(oldItem : GenericListItem<ViewBinding>, newItem : GenericListItem<ViewBinding>) = oldItem.areContentsTheSame(newItem)
+        }
+    }
+
+    private val asyncListDiffer = AsyncListDiffer(this, DIFFER)
+    private val headerItems = mutableListOf<GenericListItem<out ViewBinding>>()
+    val allItems = mutableListOf<GenericListItem<out ViewBinding>>()
+    val currentItems : List<GenericListItem<in ViewBinding>> get() = asyncListDiffer.currentList
+
     var currentSearchTerm = ""
 
-    val currentItems get() = if (currentSearchTerm.isEmpty()) allItems else filteredItems
-    val allItems = mutableListOf<GenericViewHolderBinder>()
-    private var filteredItems = listOf<GenericViewHolderBinder>()
+    private val viewTypesMapping = mutableMapOf<ViewBindingFactory, Int>()
 
-    private val viewTypesMapping = mutableMapOf<GenericLayoutFactory, Int>()
+    private var onFilterPublishedListener : OnFilterPublishedListener? = null
 
-    override fun onCreateViewHolder(parent : ViewGroup, viewType : Int) = GenericViewHolder(viewTypesMapping.filterValues { it == viewType }.keys.single().createLayout(parent))
+    override fun onCreateViewHolder(parent : ViewGroup, viewType : Int) = GenericViewHolder(viewTypesMapping.filterValues { it == viewType }.keys.single().createBinding(parent))
 
-    override fun onBindViewHolder(holder : GenericViewHolder, position : Int) {
+    override fun onBindViewHolder(holder : GenericViewHolder<ViewBinding>, position : Int) {
         currentItems[position].apply {
             adapter = this@GenericAdapter
-            bind(holder, position)
+            bind(holder.binding, position)
         }
     }
 
     override fun getItemCount() = currentItems.size
 
-    override fun getItemViewType(position : Int) = viewTypesMapping.getOrPut(currentItems[position].getLayoutFactory(), { viewTypesMapping.size })
+    override fun getItemViewType(position : Int) = viewTypesMapping.getOrPut(currentItems[position].getViewBindingFactory()) { viewTypesMapping.size }
 
-    fun addItem(item : GenericViewHolderBinder) {
-        allItems.add(item)
-        notifyItemInserted(currentItems.size)
+    fun setHeaderItems(items : List<GenericListItem<*>>) {
+        headerItems.clear()
+        headerItems.addAll(items)
+        filter.filter(currentSearchTerm)
     }
 
-    fun removeAllItems() {
-        val size = currentItems.size
+    fun setItems(items : List<GenericListItem<*>>) {
         allItems.clear()
-        notifyItemRangeRemoved(0, size)
+        allItems.addAll(items)
+        filter.filter(currentSearchTerm)
     }
 
-    fun notifyAllItemsChanged() {
-        notifyItemRangeChanged(0, currentItems.size)
+    fun setOnFilterPublishedListener(listener : OnFilterPublishedListener) {
+        onFilterPublishedListener = listener
     }
 
     /**
@@ -67,43 +84,42 @@ class GenericAdapter : RecyclerView.Adapter<GenericViewHolder>(), Filterable {
          */
         private val cos = Cosine()
 
-        inner class ScoredItem(val score : Double, val item : GenericViewHolderBinder)
+        inner class ScoredItem(val score : Double, val item : GenericListItem<*>)
 
         /**
          * This sorts the items in [allItems] in relation to how similar they are to [currentSearchTerm]
          */
         fun extractSorted() = allItems.mapNotNull { item ->
             item.key().toLowerCase(Locale.getDefault()).let {
-                val similarity = (jw.similarity(currentSearchTerm, it)) + cos.similarity(currentSearchTerm, it) / 2
+                val similarity = (jw.similarity(currentSearchTerm, it) + cos.similarity(currentSearchTerm, it)) / 2
                 if (similarity != 0.0) ScoredItem(similarity, item) else null
             }
-        }.apply {
-            sortedByDescending { it.score }
-        }
+        }.sortedByDescending { it.score }
 
         /**
          * This performs filtering on the items in [allItems] based on similarity to [term]
          */
-        override fun performFiltering(term : CharSequence) : FilterResults {
-            val results = FilterResults()
-            currentSearchTerm = (term as String).toLowerCase(Locale.getDefault())
+        override fun performFiltering(term : CharSequence) = (term as String).toLowerCase(Locale.getDefault()).let { lowerCaseTerm ->
+            currentSearchTerm = lowerCaseTerm
 
-            if (term.isEmpty()) {
-                results.values = allItems.toMutableList()
-                results.count = allItems.size
+            with(if (term.isEmpty()) {
+                allItems.toMutableList()
             } else {
-                val filterData = mutableListOf<GenericViewHolderBinder>()
+                val filterData = mutableListOf<GenericListItem<*>>()
 
                 val topResults = extractSorted()
                 val avgScore = topResults.sumByDouble { it.score } / topResults.size
 
                 for (result in topResults)
-                    if (result.score > avgScore) filterData.add(result.item)
+                    if (result.score >= avgScore) filterData.add(result.item)
 
-                results.values = filterData
-                results.count = filterData.size
+                filterData
+            }) {
+                FilterResults().apply {
+                    values = headerItems + this@with
+                    count = headerItems.size + size
+                }
             }
-            return results
         }
 
         /**
@@ -111,9 +127,8 @@ class GenericAdapter : RecyclerView.Adapter<GenericViewHolder>(), Filterable {
          */
         override fun publishResults(charSequence : CharSequence, results : FilterResults) {
             @Suppress("UNCHECKED_CAST")
-            filteredItems = results.values as List<GenericViewHolderBinder>
-
-            notifyDataSetChanged()
+            asyncListDiffer.submitList(results.values as List<GenericListItem<ViewBinding>>)
+            onFilterPublishedListener?.invoke()
         }
     }
 }

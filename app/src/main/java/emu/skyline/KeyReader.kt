@@ -26,60 +26,53 @@ object KeyReader {
      * Reads keys file, trims and writes to internal app data storage, it makes sure file is properly formatted
      */
     fun import(context : Context, uri : Uri, keyType : KeyType) : Boolean {
-        Log.i(Tag, "Parsing ${keyType.name}")
+        Log.i(Tag, "Parsing ${keyType.name} $uri")
 
         if (!DocumentFile.isDocumentUri(context, uri))
-            return false
-
-        val fileName = DocumentFile.fromSingleUri(context, uri)!!.name
-        if (fileName?.substringAfterLast('.')?.startsWith("keys")?.not() ?: false)
             return false
 
         val tmpOutputFile = File("${context.filesDir.canonicalFile}/${keyType.fileName}.tmp")
 
         val inputStream = context.contentResolver.openInputStream(uri)
-        val outputStream = tmpOutputFile.bufferedWriter()
+        tmpOutputFile.bufferedWriter().use { writer ->
+            val valid = inputStream!!.bufferedReader().useLines {
+                for (line in it) {
+                    if (line.startsWith(";")) continue
 
-        val valid = inputStream!!.bufferedReader().useLines {
-            for (line in it) {
-                val pair = line.split("=")
-                if (pair.size != 2)
-                    return@useLines false
+                    val pair = line.split("=")
+                    if (pair.size != 2)
+                        return@useLines false
 
-                val key = pair[0].trim()
-                val value = pair[1].trim()
-                when (keyType) {
-                    KeyType.Title -> {
-                        if (key.length != 32 && !isHexString(key))
-                            return@useLines false
-                        if (value.length != 32 && !isHexString(value))
-                            return@useLines false
+                    val key = pair[0].trim()
+                    val value = pair[1].trim()
+                    when (keyType) {
+                        KeyType.Title -> {
+                            if (key.length != 32 && !isHexString(key))
+                                return@useLines false
+                            if (value.length != 32 && !isHexString(value))
+                                return@useLines false
+                        }
+                        KeyType.Prod -> {
+                            if (!key.contains("_"))
+                                return@useLines false
+                            if (!isHexString(value))
+                                return@useLines false
+                        }
                     }
-                    KeyType.Prod -> {
-                        if (!key.contains("_"))
-                            return@useLines false
-                        if (!isHexString(value))
-                            return@useLines false
-                    }
+
+                    writer.append("$key=$value\n")
                 }
-
-                outputStream.append("$key=$value\n")
+                true
             }
-            true
+
+            if (valid) tmpOutputFile.renameTo(File("${tmpOutputFile.parent}/${keyType.fileName}"))
+            return valid
         }
-
-        outputStream.flush()
-        outputStream.close()
-
-        if (valid)
-            tmpOutputFile.renameTo(File("${tmpOutputFile.parent}/${keyType.fileName}"))
-        return valid
     }
 
     private fun isHexString(str : String) : Boolean {
         for (c in str)
-            if (!(c in '0'..'9' || c in 'a'..'f' || c in 'A'..'F'))
-                return false
+            if (!(c in '0'..'9' || c in 'a'..'f' || c in 'A'..'F')) return false
         return true
     }
 }

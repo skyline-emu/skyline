@@ -6,9 +6,11 @@
 package emu.skyline.adapter.controller
 
 import emu.skyline.R
+import emu.skyline.adapter.GenericListItem
 import emu.skyline.adapter.GenericViewHolder
+import emu.skyline.databinding.ControllerItemBinding
+import emu.skyline.di.getInputManager
 import emu.skyline.input.GeneralType
-import emu.skyline.input.InputManager
 import emu.skyline.input.JoyConLeftController
 
 /**
@@ -17,9 +19,9 @@ import emu.skyline.input.JoyConLeftController
  * @param type The type of controller setting this item is displaying
  */
 class ControllerGeneralViewItem(private val controllerId : Int, val type : GeneralType, private val onClick : (item : ControllerGeneralViewItem, position : Int) -> Unit) : ControllerViewItem() {
-    override fun bind(holder : GenericViewHolder, position : Int) {
-        val context = holder.itemView.context
-        val controller = InputManager.controllers[controllerId]!!
+    override fun bind(binding : ControllerItemBinding, position : Int) {
+        val context = binding.root.context
+        val controller = context.getInputManager().controllers[controllerId]!!
 
         content = context.getString(type.stringRes)
         subContent = when (type) {
@@ -34,8 +36,12 @@ class ControllerGeneralViewItem(private val controllerId : Int, val type : Gener
 
             GeneralType.RumbleDevice -> controller.rumbleDeviceName ?: context.getString(R.string.none)
         }
-        super.bind(holder, position)
+        super.bind(binding, position)
 
-        holder.itemView.setOnClickListener { onClick.invoke(this, position) }
+        binding.root.setOnClickListener { onClick.invoke(this, position) }
     }
+
+    override fun areItemsTheSame(other : GenericListItem<ControllerItemBinding>) = other is ControllerGeneralViewItem && controllerId == other.controllerId
+
+    override fun areContentsTheSame(other : GenericListItem<ControllerItemBinding>) = other is ControllerGeneralViewItem && type == other.type
 }

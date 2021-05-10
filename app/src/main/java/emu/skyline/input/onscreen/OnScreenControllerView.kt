@@ -17,22 +17,35 @@ import android.view.View
 import android.view.View.OnTouchListener
 import emu.skyline.input.ButtonId
 import emu.skyline.input.ButtonState
+import emu.skyline.input.ControllerType
+import emu.skyline.input.StickId
 import emu.skyline.utils.add
 import emu.skyline.utils.multiply
 import emu.skyline.utils.normalize
 import kotlin.math.roundToLong
 
 typealias OnButtonStateChangedListener = (buttonId : ButtonId, state : ButtonState) -> Unit
-typealias OnStickStateChangedListener = (buttonId : ButtonId, position : PointF) -> Unit
+typealias OnStickStateChangedListener = (stickId : StickId, position : PointF) -> Unit
 
 /**
  * Renders On-Screen Controls as a single view, handles touch inputs and button toggling
  */
 class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs : AttributeSet? = null, defStyleAttr : Int = 0, defStyleRes : Int = 0) : View(context, attrs, defStyleAttr, defStyleRes) {
+    companion object {
+        private val controllerTypeMappings = mapOf(*ControllerType.values().map {
+            it to (setOf(*it.buttons) to setOf(*it.sticks))
+        }.toTypedArray())
+    }
+
     private val controls = Controls(this)
     private var onButtonStateChangedListener : OnButtonStateChangedListener? = null
     private var onStickStateChangedListener : OnStickStateChangedListener? = null
     private val joystickAnimators = mutableMapOf<JoystickButton, Animator?>()
+    var controllerType : ControllerType? = null
+        set(value) {
+            field = value
+            invalidate()
+        }
     var recenterSticks = false
         set(value) {
             field = value
@@ -42,11 +55,16 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
     override fun onDraw(canvas : Canvas) {
         super.onDraw(canvas)
 
-        controls.allButtons.forEach {
-            if (it.config.enabled) {
-                it.width = width
-                it.height = height
-                it.render(canvas)
+        val allowedIds = controllerTypeMappings[controllerType]
+        controls.allButtons.forEach { button ->
+            if (button.config.enabled
+                && allowedIds?.let { (buttonIds, stickIds) ->
+                    if (button is JoystickButton) stickIds.contains(button.stickId) else buttonIds.contains(button.buttonId)
+                } != false
+            ) {
+                button.width = width
+                button.height = height
+                button.render(canvas)
             }
         }
     }
@@ -67,8 +85,14 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
                         button.onFingerUp(x, y)
                         onButtonStateChangedListener?.invoke(button.buttonId, ButtonState.Released)
                         handled = true
+                    } else if (pointerId == button.partnerPointerId) {
+                        button.partnerPointerId = -1
+                        button.onFingerUp(x, y)
+                        onButtonStateChangedListener?.invoke(button.buttonId, ButtonState.Released)
+                        handled = true
                     }
                 }
+
                 MotionEvent.ACTION_DOWN,
                 MotionEvent.ACTION_POINTER_DOWN -> {
                     if (button.config.enabled && button.isTouched(x, y)) {
@@ -77,6 +101,26 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
                         performClick()
                         onButtonStateChangedListener?.invoke(button.buttonId, ButtonState.Pressed)
                         handled = true
+                    }
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    for (fingerId in 0 until event.pointerCount) {
+                        if (fingerId == button.touchPointerId) {
+                            for (buttonPair in controls.buttonPairs) {
+                                if (buttonPair.contains(button)) {
+                                    for (otherButton in buttonPair) {
+                                        if (otherButton != button && otherButton.config.enabled && otherButton.isTouched(event.getX(fingerId), event.getY(fingerId))) {
+                                            otherButton.partnerPointerId = fingerId
+                                            otherButton.onFingerDown(x, y)
+                                            performClick()
+                                            onButtonStateChangedListener?.invoke(otherButton.buttonId, ButtonState.Pressed)
+                                            handled = true
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -102,14 +146,14 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
                                 val vector = direction.multiply(value)
                                 val newPosition = position.add(vector)
                                 joystick.onFingerMoved(newPosition.x, newPosition.y, false)
-                                onStickStateChangedListener?.invoke(joystick.buttonId, vector.multiply(1f / radius))
+                                onStickStateChangedListener?.invoke(joystick.stickId, vector.multiply(1f / radius))
                                 invalidate()
                             }
                             addListener(object : AnimatorListenerAdapter() {
                                 override fun onAnimationCancel(animation : Animator?) {
                                     super.onAnimationCancel(animation)
                                     onAnimationEnd(animation)
-                                    onStickStateChangedListener?.invoke(joystick.buttonId, PointF(0f, 0f))
+                                    onStickStateChangedListener?.invoke(joystick.stickId, PointF(0f, 0f))
                                 }
 
                                 override fun onAnimationEnd(animation : Animator?) {
@@ -126,6 +170,7 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
                         handled = true
                     }
                 }
+
                 MotionEvent.ACTION_DOWN,
                 MotionEvent.ACTION_POINTER_DOWN -> {
                     if (joystick.config.enabled && joystick.isTouched(x, y)) {
@@ -136,16 +181,17 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
                         if (joystick.shortDoubleTapped)
                             onButtonStateChangedListener?.invoke(joystick.buttonId, ButtonState.Pressed)
                         if (recenterSticks)
-                            onStickStateChangedListener?.invoke(joystick.buttonId, joystick.outerToInnerRelative())
+                            onStickStateChangedListener?.invoke(joystick.stickId, joystick.outerToInnerRelative())
                         performClick()
                         handled = true
                     }
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     for (i in 0 until event.pointerCount) {
                         if (event.getPointerId(i) == joystick.touchPointerId) {
                             val centerToPoint = joystick.onFingerMoved(event.getX(i), event.getY(i))
-                            onStickStateChangedListener?.invoke(joystick.buttonId, centerToPoint)
+                            onStickStateChangedListener?.invoke(joystick.stickId, centerToPoint)
                             handled = true
                         }
                     }
@@ -166,6 +212,7 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
                         return@any true
                     }
                 }
+
                 MotionEvent.ACTION_DOWN,
                 MotionEvent.ACTION_POINTER_DOWN -> {
                     if (button.config.enabled && button.isTouched(event.x, event.y)) {
@@ -174,6 +221,7 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
                         return@any true
                     }
                 }
+
                 MotionEvent.ACTION_MOVE -> {
                     if (button.isEditing) {
                         button.edit(event.x, event.y)
@@ -196,7 +244,7 @@ class OnScreenControllerView @JvmOverloads constructor(context : Context, attrs 
             it.resetRelativeValues()
             it.config.enabled = true
         }
-        controls.globalScale = 1f
+        controls.globalScale = 1.15f
         invalidate()
     }
 

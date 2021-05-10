@@ -8,6 +8,7 @@
     <string name="log">Logger</string>
     <string name="refresh">Refresh</string>
     <!-- Main -->
+    <string name="all">All</string>
     <string name="metadata_missing">Metadata Missing</string>
     <string name="icon">Icon</string>
     <string name="no_rom">Cannot find any ROMs</string>
@@ -60,7 +61,7 @@
     <string name="joystick">Joystick</string>
     <string name="confirm">Confirm</string>
     <string name="cancel">Cancel</string>
-    <string name="osc_recenter_sticks">Recenter sticks on touch</string>
+    <string name="osc_recenter_sticks">Recenter Sticks On Touch</string>
     <string name="controller">Controller</string>
     <string name="config_controller">Configure Controller</string>
     <string name="controller_type">Controller Type</string>

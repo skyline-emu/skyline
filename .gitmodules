@@ -25,3 +25,48 @@
 [submodule "app/libraries/vkhpp"]
 	path = app/libraries/vkhpp
 	url = https://github.com/KhronosGroup/Vulkan-Hpp
+[submodule "app/libraries/inih"]
+    path = app/libraries/inih/inih
+    url = https://github.com/benhoyt/inih.git
+[submodule "app/libraries/cubeb"]
+    path = app/libraries/cubeb
+    url = https://github.com/kinetiknz/cubeb.git
+[submodule "app/libraries/dynarmic"]
+    path = app/libraries/dynarmic
+    url = https://github.com/MerryMage/dynarmic.git
+[submodule "app/libraries/soundtouch"]
+    path = app/libraries/soundtouch
+    url = https://github.com/citra-emu/ext-soundtouch.git
+[submodule "app/libraries/libressl"]
+    path = app/libraries/libressl
+    url = https://github.com/citra-emu/ext-libressl-portable.git
+[submodule "app/libraries/libusb"]
+	path = app/libraries/libusb/libusb
+	url = https://github.com/libusb/libusb.git
+[submodule "app/libraries/discord-rpc"]
+    path = app/libraries/discord-rpc
+    url = https://github.com/discordapp/discord-rpc.git
+[submodule "app/libraries/Vulkan-Headers"]
+    path = app/libraries/Vulkan-Headers
+    url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "app/libraries/sirit"]
+    path = app/libraries/sirit
+    url = https://github.com/ReinUsesLisp/sirit
+[submodule "app/libraries/mbedtls"]
+    path = app/libraries/mbedtls
+    url = https://github.com/yuzu-emu/mbedtls
+[submodule "app/libraries/libzip"]
+    path = app/libraries/libzip/libzip
+    url = https://github.com/nih-at/libzip.git
+[submodule "app/libraries/xbyak"]
+    path = app/libraries/xbyak
+    url = https://github.com/herumi/xbyak.git
+[submodule "app/libraries/opus"]
+	path = app/libraries/opus/opus
+	url = https://github.com/xiph/opus.git
+[submodule "app/libraries/ffmpeg"]
+	path = app/libraries/ffmpeg
+	url = https://git.ffmpeg.org/ffmpeg.git
+[submodule "app/libraries/SDL"]
+	path = app/libraries/SDL
+	url = https://github.com/libsdl-org/SDL.git

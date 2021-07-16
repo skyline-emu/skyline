@@ -30,6 +30,5 @@ namespace skyline::service::csrng {
         std::mt19937_64 gen;
         std::uniform_int_distribution<u8> dist;
         u32 length;
-        std::string buffer;
     };
 }

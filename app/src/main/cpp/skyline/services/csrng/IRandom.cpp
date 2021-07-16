@@ -10,12 +10,10 @@ namespace skyline::service::csrng {
     }
 
     Result IRandom::GetRandomBytes(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
-        u32 length=request.outputBuf.size();
-        buffer.resize(length);
-        for(u32 i=0;i<length;i++) {
-            buffer[i]=dist(gen);
+        u32 length=request.outputBuf.at(0).size();
+        for(auto i:request.outputBuf.at(0)) {
+            i=dist(gen);
         }
-        response.Push(buffer);
         return {};
     }
 }

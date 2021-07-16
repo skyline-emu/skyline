@@ -28,5 +28,6 @@ namespace skyline::service::csrng {
       private:
         std::random_device engine;
         u32 length;
+        std::string buffer;
     };
 }

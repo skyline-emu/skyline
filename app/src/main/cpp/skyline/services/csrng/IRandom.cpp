@@ -9,9 +9,11 @@ namespace skyline::service::csrng {
 
     Result IRandom::GetRandomBytes(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
         u32 length=request.outputBuf.size();
-        for(u32 i=1;i<=length;i++) {
-            response.Push<u8>((u8)engine());
+        buffer.resize(length);
+        for(u32 i=0;i<length;i++) {
+            buffer[i]=engine();
         }
+        response.Push(buffer);
         return {};
     }
 }

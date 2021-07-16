@@ -5,13 +5,15 @@
 #include "IRandom.h"
 
 namespace skyline::service::csrng {
-    IRandom::IRandom(const DeviceState &state, ServiceManager &manager) : BaseService(state, manager){}
+    IRandom::IRandom(const DeviceState &state, ServiceManager &manager) : BaseService(state, manager) {
+        gen=std::mt19937_64(rd());
+    }
 
     Result IRandom::GetRandomBytes(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
         u32 length=request.outputBuf.size();
         buffer.resize(length);
         for(u32 i=0;i<length;i++) {
-            buffer[i]=engine();
+            buffer[i]=dist(gen);
         }
         response.Push(buffer);
         return {};
